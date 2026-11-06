@@ -17,6 +17,11 @@ let pendingTask = false;
 let deleting = null;
 let toastTimer;
 let ready = false;
+let currentUser = null;
+let sessionGeneration = 0;
+let authMode = 'login';
+let allowRegistration = false;
+let savedDraft = null;
 
 function weekDates() {
   const first = new Date();
@@ -30,15 +35,27 @@ function weekDates() {
 }
 
 async function api(path, method='GET', data) {
+  const generation = sessionGeneration;
   const response = await fetch(`/api/${path}`, {
     method, credentials:'same-origin',
     headers:method === 'GET' ? {} : {'Content-Type':'application/json', 'X-CSRF-TOKEN':csrfToken},
     body:data === undefined ? undefined : JSON.stringify(data)
   });
+  const account = response.headers.get('X-Account-Id');
+  if ((path.startsWith('assignments') || path.startsWith('subjects')) && currentUser && account && account !== currentUser.id) {
+    savedDraft = null;
+    showLogin('В другой вкладке изменился аккаунт. Войдите, чтобы продолжить.',false);
+    const error = new Error('Аккаунт изменился. Войдите снова.'); error.status = 401; throw error;
+  }
   if (!response.ok) {
     const result = await response.json().catch(() => ({}));
-    throw new Error(result.error || (response.status === 404 ? 'Запись уже удалена. Обновите страницу.' : 'Не удалось выполнить действие. Проверьте данные и попробуйте снова.'));
+    if (response.status === 401 && !path.startsWith('auth/')) showLogin('Сеанс завершился. Войдите снова.');
+    const error = new Error(result.error || (response.status === 404 ? 'Запись уже удалена. Обновите страницу.' : response.status === 401 ? 'Войдите в аккаунт.' : 'Не удалось выполнить действие. Проверьте данные и попробуйте снова.'));
+    error.status = response.status;
+    throw error;
   }
+  if ((path.startsWith('assignments') || path.startsWith('subjects')) && generation !== sessionGeneration)
+    throw new Error('Аккаунт изменился. Повторите действие.');
   return response.status === 204 ? null : response.json();
 }
 
@@ -52,7 +69,9 @@ function notify(message, error=false) {
 }
 
 async function loadData() {
+  const generation = sessionGeneration;
   const [subjects,assignments] = await Promise.all([api('subjects'),api('assignments')]);
+  if (generation !== sessionGeneration || !currentUser) return;
   state.subjects = subjects;
   state.assignments = assignments;
   ready = true;
@@ -61,7 +80,7 @@ async function loadData() {
 
 async function refreshAfterChange(message) {
   try { await loadData(); notify(message); }
-  catch { notify('Изменения сохранены, но список не обновился. Обновите страницу.',true); }
+  catch (error) { if (error.status !== 401) notify('Изменения сохранены, но список не обновился. Обновите страницу.',true); }
 }
 
 function subjectOf(task) {
@@ -304,9 +323,106 @@ $('#sort').addEventListener('change',event => { state.sort = event.target.value;
 $('#subject-dialog').addEventListener('close',() => { if (!$('#task-dialog').open) pendingTask = false; });
 
 async function initialize() {
-  try { csrfToken = (await api('token')).token; await loadData(); }
-  catch {
-    $('#assignment-list').innerHTML = `<div class="empty-state">${icon('alert')}<h2>Не удалось загрузить задания</h2><p>Проверь, запущено ли приложение, и попробуй ещё раз.</p><button class="primary-button" data-reload>Попробовать снова</button></div>`;
+  $('#auth-retry').hidden = true;
+  try {
+    csrfToken = (await api('token')).token;
+    allowRegistration = (await api('auth/options')).allowRegistration;
+    const user = await api('auth/me');
+    await enterAccount(user);
+  } catch (error) {
+    showLogin(error.status === 401 ? '' : 'Не удалось подключиться. Проверьте, запущено ли приложение.');
+    $('#auth-retry').hidden = error.status === 401;
+    $('#auth-form').hidden = error.status !== 401;
   }
 }
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const register = mode === 'register';
+  $('#auth-title').textContent = register ? 'Создать аккаунт' : 'Вход в Зачёт';
+  $('#auth-description').textContent = register ? 'Начни с чистого листа. У каждого аккаунта свои задания.' : 'Войди, чтобы продолжить работу со своими заданиями.';
+  $('#auth-submit').textContent = register ? 'Зарегистрироваться' : 'Войти';
+  $('#auth-switch').textContent = register ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться';
+  $('#auth-switch').hidden = !allowRegistration;
+  $('#auth-password').autocomplete = register ? 'new-password' : 'current-password';
+  $('#auth-password').minLength = register ? 12 : 1;
+  $('#password-hint').hidden = !register;
+  $('.form-error',$('#auth-form')).textContent = '';
+}
+
+function showLogin(message='', preserveDraft=true) {
+  if (preserveDraft && currentUser && $('#task-dialog').open) {
+    savedDraft = {owner:currentUser.id,id:editingId,data:Object.fromEntries(new FormData($('#task-form')))};
+  }
+  const email = currentUser?.email || $('#auth-email').value;
+  currentUser = null;
+  sessionGeneration++;
+  ready = false;
+  $$('dialog[open]').forEach(dialog => dialog.close());
+  Object.assign(state,{subjects:[],assignments:[],view:'active',subject:null,status:'any',query:'',sort:'due',date:null});
+  $('#search').value = ''; $('#sort').value = 'due';
+  $('#task-form').reset(); $('#task-form').elements.subjectId.innerHTML = '';
+  $('#confirm-message').textContent = '';
+  $('#account-email').textContent = '';
+  pendingTask = false; deleting = null; editingId = null;
+  render();
+  $('#app-shell').hidden = true;
+  $('.skip-link').hidden = true;
+  $('#auth-screen').hidden = false;
+  $('#auth-form').hidden = false;
+  $('#auth-form').reset(); $('#auth-email').value = email;
+  setAuthMode('login');
+  if (message) $('.form-error',$('#auth-form')).textContent = message;
+}
+
+async function enterAccount(user) {
+  sessionGeneration++;
+  currentUser = user;
+  if (savedDraft && savedDraft.owner !== user.id) savedDraft = null;
+  csrfToken = (await api('token')).token;
+  await loadData();
+  if (!currentUser || currentUser.id !== user.id) return;
+  $('#account-email').textContent = user.email;
+  $('#auth-form').reset();
+  $('#auth-screen').hidden = true;
+  $('#app-shell').hidden = false;
+  $('.skip-link').hidden = false;
+  $('#main').focus();
+  if (savedDraft) $('#draft-dialog').showModal();
+}
+
+$('#auth-form').addEventListener('submit',event => submitForm(event,async form => {
+  csrfToken = (await api('token')).token;
+  const values = new FormData(form);
+  const submittedMode = authMode;
+  const user = await api(`auth/${submittedMode}`,'POST',{email:values.get('email'),password:values.get('password')});
+  if (submittedMode === 'register') {
+    setAuthMode('login'); $('#auth-password').value = '';
+    notify('Аккаунт создан. Теперь войдите с вашим паролем.');
+    $('#auth-password').focus();
+  } else await enterAccount(user);
+}));
+$('#auth-switch').addEventListener('click',() => setAuthMode(authMode === 'login' ? 'register' : 'login'));
+$('#auth-retry').addEventListener('click',initialize);
+$('#logout').addEventListener('click',async event => {
+  const button = event.currentTarget; button.disabled = true;
+  try {
+    await api('auth/logout','POST'); savedDraft = null; showLogin('',false);
+    csrfToken = (await api('token')).token;
+  } catch (error) {
+    if (error.status === 401) { savedDraft = null; showLogin('',false); }
+    else notify('Не удалось выйти. Проверьте подключение и повторите.',true);
+  } finally { button.disabled = false; }
+});
+$('#restore-draft').addEventListener('click',() => {
+  const draft = savedDraft; savedDraft = null; $('#draft-dialog').close();
+  if (!draft || draft.owner !== currentUser?.id) return;
+  if (!state.subjects.some(s=>s.id === Number(draft.data.subjectId)) ||
+      (draft.id && !state.assignments.some(a=>a.id === draft.id)))
+    return notify('Предмет или задание уже удалены. Создайте новое задание.',true);
+  openTask(draft.id);
+  for (const [key,value] of Object.entries(draft.data)) $('#task-form').elements[key].value = value;
+});
+$('#discard-draft').addEventListener('click',()=> { savedDraft = null; $('#draft-dialog').close(); });
+$('#draft-dialog').addEventListener('cancel',()=> { savedDraft = null; });
 initialize();

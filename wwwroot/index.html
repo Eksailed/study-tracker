@@ -25,11 +25,25 @@
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10 4 2 18a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3L14 4a2 2 0 0 0-4 0zM12 9v4M12 17h.01"/></symbol>
   </svg>
-  <a class="skip-link" href="#main">К заданиям</a>
-  <div class="app-shell">
+  <a class="skip-link" href="#main" hidden>К заданиям</a>
+  <section id="auth-screen" class="auth-screen" aria-labelledby="auth-title">
+    <div class="auth-intro"><a class="brand" href="/" aria-label="Зачёт — главная"><span class="brand-mark">з<span>✓</span></span>зачёт<span class="brand-dot">.</span></a><h1>Твоя учёба.<br>Твой ритм.</h1><p>Предметы, задания и сроки в одном месте.<br>Чтобы на всё остальное оставалось время.</p><div class="auth-notebook" aria-hidden="true"><div class="empty-notebook"><svg class="icon"><use href="#i-check"/></svg></div></div></div>
+    <div class="auth-card"><h2 id="auth-title">Вход в Зачёт</h2><p id="auth-description">Проверяем подключение…</p>
+      <form id="auth-form" hidden>
+        <label for="auth-email">Электронная почта</label><input id="auth-email" name="email" type="email" autocomplete="username" required maxlength="254" placeholder="student@example.com">
+        <label for="auth-password">Пароль</label><input id="auth-password" name="password" type="password" autocomplete="current-password" required maxlength="128">
+        <p id="password-hint" class="muted" hidden>От 12 до 128 символов. Можно использовать парольную фразу.</p>
+        <p class="form-error" role="alert"></p><button id="auth-submit" class="primary-button" type="submit">Войти</button>
+      </form>
+      <button id="auth-switch" class="text-button" type="button" hidden>Нет аккаунта? Зарегистрироваться</button>
+      <button id="auth-retry" class="secondary-button" type="button" hidden>Повторить подключение</button>
+    </div>
+  </section>
+  <div class="app-shell" id="app-shell" hidden>
     <aside class="sidebar" aria-label="Навигация">
       <a class="brand" href="/" aria-label="Зачёт — главная"><span class="brand-mark">з<span>✓</span></span>зачёт<span class="brand-dot">.</span></a>
       <div class="workspace"><span class="workspace-avatar">Я</span><div><strong>Моя учёба</strong><span>Личное пространство</span></div></div>
+      <div class="account-bar"><span id="account-email"></span><button class="text-button" id="logout" type="button">Выйти</button></div>
       <nav class="main-nav" aria-label="Разделы">
         <button class="nav-item selected" data-view="active"><svg class="icon"><use href="#i-grid"/></svg>Мои задания<span class="nav-count" id="active-count">0</span></button>
         <button class="nav-item" data-view="upcoming"><svg class="icon"><use href="#i-calendar"/></svg>На этой неделе</button>
@@ -43,7 +57,7 @@
     </aside>
     <div class="page">
       <header class="topbar"><span>Моя учёба <span class="breadcrumb-separator">/</span> <strong id="breadcrumb">Мои задания</strong></span><time id="today-label"></time></header>
-      <main id="main">
+      <main id="main" tabindex="-1">
         <section class="page-heading"><div><p class="greeting" id="greeting">Хорошего учебного дня</p><h1 id="page-title">Мои задания</h1><p class="subtitle">Освободи голову. Всё, что нужно сделать, — здесь.</p></div><button class="primary-button" id="add-assignment"><svg class="icon"><use href="#i-plus"/></svg>Добавить задание</button></section>
         <section class="summary" aria-label="Сводка заданий">
           <button class="summary-item" data-summary="active"><span class="summary-icon blue"><svg class="icon"><use href="#i-book"/></svg></span><span><strong id="stat-active">0</strong><span>Нужно сделать</span></span></button>
@@ -93,6 +107,7 @@
     </form>
   </dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><form id="confirm-form"><h2 id="confirm-title">Удалить?</h2><p id="confirm-message"></p><p class="form-error" role="alert"></p><div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Отмена</button><button class="danger-button" type="submit">Удалить</button></div></form></dialog>
+  <dialog id="draft-dialog" aria-labelledby="draft-title"><h2 id="draft-title">Вернуться к черновику?</h2><p>Сеанс завершился во время редактирования. Черновик сохранён в памяти этой вкладки.</p><div class="dialog-actions"><button id="discard-draft" class="secondary-button" type="button">Пропустить</button><button id="restore-draft" class="primary-button" type="button">Восстановить</button></div></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body>
 </html>

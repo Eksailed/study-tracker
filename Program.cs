@@ -7,7 +7,7 @@ using System.Security.Claims;
 var migrate = args.Contains("--migrate");
 var builder = WebApplication.CreateBuilder(args.Where(a => a != "--migrate").ToArray());
 var dataDirectory = builder.Configuration["Tracker:DataDirectory"]
-    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "v02");
 Directory.CreateDirectory(dataDirectory);
 builder.Services.AddDbContext<TrackerDb>(options => options.UseSqlite(
     new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
@@ -54,7 +54,14 @@ if (args.Contains("--import-legacy"))
 }
 
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true)
+        context.Response.Headers["X-Account-Id"] = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    await next();
+});
 app.UseRateLimiter();
+app.UseAuthorization();
 
 app.Use(async (context, next) =>
 {
@@ -85,7 +92,6 @@ app.Use(async (context, next) =>
 });
 app.UseDefaultFiles();
 app.UseStaticFiles();
-app.UseAuthorization();
 app.MapTrackerAccounts();
 
 app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
