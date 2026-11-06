@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using StudyTracker.Notifications;
 
 namespace StudyTracker;
 
@@ -34,10 +35,16 @@ public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<
 {
     public DbSet<Subject> Subjects => Set<Subject>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
+    public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
+    public DbSet<TelegramConnection> TelegramConnections => Set<TelegramConnection>();
+    public DbSet<TelegramLinkCode> TelegramLinkCodes => Set<TelegramLinkCode>();
+    public DbSet<TelegramUpdateState> TelegramUpdateStates => Set<TelegramUpdateState>();
+    public DbSet<ReminderDelivery> ReminderDeliveries => Set<ReminderDelivery>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
+        NotificationModel.Configure(model);
         model.Entity<ApplicationUser>().HasIndex(u => u.NormalizedEmail).IsUnique();
         model.Entity<Subject>().HasIndex(s => new { s.OwnerId, s.NameKey }).IsUnique();
         model.Entity<Subject>().HasOne<ApplicationUser>().WithMany().HasForeignKey(s => s.OwnerId).OnDelete(DeleteBehavior.Restrict);

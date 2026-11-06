@@ -6,6 +6,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Net;
+using StudyTracker.Notifications;
 
 var migrate = args.Contains("--migrate");
 var builder = WebApplication.CreateBuilder(args.Where(a => a != "--migrate").ToArray());
@@ -39,6 +40,7 @@ builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddProblemDetails();
 builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 builder.Services.AddTrackerAccounts(builder.Environment);
+builder.Services.AddSingleton(builder.Configuration.GetSection("Telegram").Get<TelegramOptions>() ?? new TelegramOptions());
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -131,6 +133,7 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapTrackerAccounts();
+app.MapNotifications();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>

@@ -249,6 +249,164 @@ namespace StudyTracker.Migrations
                     b.ToTable("Assignments");
                 });
 
+            modelBuilder.Entity("StudyTracker.Notifications.NotificationSettings", b =>
+                {
+                    b.Property<string>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("BeforeEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BeforeMinute")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("BindingVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CodeIssueCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("CodeWindowStartedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("DueEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DueMinute")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("LastTestAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OwnerId");
+
+                    b.ToTable("NotificationSettings");
+                });
+
+            modelBuilder.Entity("StudyTracker.Notifications.ReminderDelivery", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AssignmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("BindingVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ExpiresAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("MessageId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("NextAttemptAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Problem")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ScheduledAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("SentAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("State")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("State", "NextAttemptAt");
+
+                    b.HasIndex("AssignmentId", "DueDate", "Kind")
+                        .IsUnique();
+
+                    b.ToTable("ReminderDeliveries");
+                });
+
+            modelBuilder.Entity("StudyTracker.Notifications.TelegramConnection", b =>
+                {
+                    b.Property<string>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("BotId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ChatId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Problem")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OwnerId");
+
+                    b.HasIndex("ChatId")
+                        .IsUnique();
+
+                    b.ToTable("TelegramConnections");
+                });
+
+            modelBuilder.Entity("StudyTracker.Notifications.TelegramLinkCode", b =>
+                {
+                    b.Property<string>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ExpiresAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OwnerId");
+
+                    b.HasIndex("Hash")
+                        .IsUnique();
+
+                    b.ToTable("TelegramLinkCodes");
+                });
+
+            modelBuilder.Entity("StudyTracker.Notifications.TelegramUpdateState", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("BotId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("NextOffset")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TelegramUpdateStates");
+                });
+
             modelBuilder.Entity("StudyTracker.Subject", b =>
                 {
                     b.Property<int>("Id")
@@ -346,6 +504,42 @@ namespace StudyTracker.Migrations
                         .IsRequired();
 
                     b.Navigation("Subject");
+                });
+
+            modelBuilder.Entity("StudyTracker.Notifications.NotificationSettings", b =>
+                {
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StudyTracker.Notifications.ReminderDelivery", b =>
+                {
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StudyTracker.Notifications.TelegramConnection", b =>
+                {
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StudyTracker.Notifications.TelegramLinkCode", b =>
+                {
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("StudyTracker.Subject", b =>
