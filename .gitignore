@@ -1,0 +1,15 @@
+bin/
+obj/
+App_Data/
+.vs/
+*.user
+__pycache__/
+*.db
+*.db-shm
+*.db-wal
+*.log
+.env
+.env.*
+!.env.example
+*.pfx
+*.key

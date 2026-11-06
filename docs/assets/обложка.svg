@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="title desc">
+  <title id="title">Зачёт — учебные задания без хаоса</title>
+  <desc id="desc">Трекер учебных заданий: предметы, сроки и прогресс. ASP.NET Core 10 и SQLite.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#dce5f7" stroke-width="1"/></pattern>
+  </defs>
+  <rect width="1200" height="400" rx="20" fill="#f2f6ff"/>
+  <path d="M704 0h476a20 20 0 0 1 20 20v360a20 20 0 0 1-20 20H704z" fill="url(#grid)"/>
+  <rect x="56" y="49" width="58" height="58" rx="18" fill="#224bce"/>
+  <path d="m71 79 10 10 20-24" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <g font-family="Segoe UI,Arial,sans-serif">
+    <text x="130" y="92" font-size="43" font-weight="700" fill="#25324b">зачёт<tspan fill="#224bce">.</tspan></text>
+    <text x="56" y="184" font-size="40" font-weight="700" fill="#25324b">Учебные задания</text>
+    <text x="56" y="234" font-size="40" font-weight="700" fill="#25324b">без хаоса</text>
+    <text x="56" y="278" font-size="19" fill="#687991">Предметы, сроки и прогресс в одном месте.</text>
+    <rect x="56" y="318" width="175" height="34" rx="8" fill="#e0e9ff"/>
+    <text x="72" y="341" font-size="15" font-weight="600" fill="#224bce">ASP.NET Core 10</text>
+    <rect x="243" y="318" width="91" height="34" rx="8" fill="#def1eb"/>
+    <text x="261" y="341" font-size="15" font-weight="600" fill="#138876">SQLite</text>
+    <g transform="translate(735 54) rotate(4 196 145)">
+      <rect x="0" y="0" width="392" height="292" rx="16" fill="#fff" stroke="#dce5f7" stroke-width="2"/>
+      <text x="26" y="43" font-size="19" font-weight="600" fill="#25324b">План на неделю</text>
+      <path d="M26 62h340M26 132h340M26 202h340" stroke="#e8edf4"/>
+      <rect x="27" y="85" width="20" height="20" rx="6" fill="#138876"/>
+      <path d="m32 95 4 4 7-8" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      <text x="61" y="98" font-size="14" fill="#8391a7" text-decoration="line-through">Подготовить конспект</text>
+      <rect x="61" y="111" width="92" height="5" rx="2.5" fill="#dceee8"/>
+      <rect x="27" y="155" width="20" height="20" rx="6" fill="#fff" stroke="#bfcde3" stroke-width="1.5"/>
+      <text x="61" y="168" font-size="14" font-weight="600" fill="#25324b">Лабораторная по базам данных</text>
+      <text x="61" y="188" font-size="11" fill="#224bce">В работе</text>
+      <rect x="27" y="225" width="20" height="20" rx="6" fill="#fff" stroke="#bfcde3" stroke-width="1.5"/>
+      <text x="61" y="238" font-size="14" font-weight="600" fill="#25324b">Решить задачи по математике</text>
+      <text x="61" y="258" font-size="11" fill="#758096">Нужно сделать</text>
+    </g>
+  </g>
+</svg>

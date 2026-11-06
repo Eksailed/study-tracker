@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#224bce">
+  <meta name="description" content="Предметы, задания и сроки сдачи в одном месте.">
+  <title>Зачёт — учебные задания</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <svg class="svg-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 4h7a3 3 0 0 1 3 3v14a4 4 0 0 0-4-3H4zM14 7a3 3 0 0 1 3-3h4v14h-3a4 4 0 0 0-4 3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 11h18"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10 4 2 18a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3L14 4a2 2 0 0 0-4 0zM12 9v4M12 17h.01"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main">К заданиям</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Навигация">
+      <a class="brand" href="/" aria-label="Зачёт — главная"><span class="brand-mark">з<span>✓</span></span>зачёт<span class="brand-dot">.</span></a>
+      <div class="workspace"><span class="workspace-avatar">Я</span><div><strong>Моя учёба</strong><span>Личное пространство</span></div></div>
+      <nav class="main-nav" aria-label="Разделы">
+        <button class="nav-item selected" data-view="active"><svg class="icon"><use href="#i-grid"/></svg>Мои задания<span class="nav-count" id="active-count">0</span></button>
+        <button class="nav-item" data-view="upcoming"><svg class="icon"><use href="#i-calendar"/></svg>На этой неделе</button>
+        <button class="nav-item" data-view="done"><svg class="icon"><use href="#i-check"/></svg>Выполненные</button>
+        <button class="nav-item" data-view="all"><svg class="icon"><use href="#i-book"/></svg>Все задания</button>
+      </nav>
+      <div class="subjects-heading"><h2>Предметы</h2><button class="icon-button" id="add-subject" aria-label="Добавить предмет"><svg class="icon"><use href="#i-plus"/></svg></button></div>
+      <div id="subjects" class="subjects"></div>
+      <div class="sidebar-note"><svg class="icon"><use href="#i-book"/></svg><p>По одному заданию.<br>В своём темпе.</p><span>Всё получится.</span></div>
+      <div class="sidebar-footer"><span class="connection-dot"></span>Твоё учебное пространство</div>
+    </aside>
+    <div class="page">
+      <header class="topbar"><span>Моя учёба <span class="breadcrumb-separator">/</span> <strong id="breadcrumb">Мои задания</strong></span><time id="today-label"></time></header>
+      <main id="main">
+        <section class="page-heading"><div><p class="greeting" id="greeting">Хорошего учебного дня</p><h1 id="page-title">Мои задания</h1><p class="subtitle">Освободи голову. Всё, что нужно сделать, — здесь.</p></div><button class="primary-button" id="add-assignment"><svg class="icon"><use href="#i-plus"/></svg>Добавить задание</button></section>
+        <section class="summary" aria-label="Сводка заданий">
+          <button class="summary-item" data-summary="active"><span class="summary-icon blue"><svg class="icon"><use href="#i-book"/></svg></span><span><strong id="stat-active">0</strong><span>Нужно сделать</span></span></button>
+          <button class="summary-item" data-summary="overdue"><span class="summary-icon orange"><svg class="icon"><use href="#i-clock"/></svg></span><span><strong id="stat-overdue">0</strong><span>Срок прошёл</span></span></button>
+          <button class="summary-item" data-summary="upcoming"><span class="summary-icon purple"><svg class="icon"><use href="#i-calendar"/></svg></span><span><strong id="stat-week">0</strong><span>На этой неделе</span></span></button>
+          <button class="summary-item" data-summary="done"><span class="summary-icon teal"><svg class="icon"><use href="#i-check"/></svg></span><span><strong id="stat-done">0</strong><span>Выполнено</span></span></button>
+        </section>
+        <div class="content-grid">
+          <section class="assignment-panel" aria-label="Задания">
+            <div class="panel-toolbar"><div class="tabs" aria-label="Фильтр по статусу"><button class="tab active" data-status="any">Все</button><button class="tab" data-status="Todo">Нужно сделать</button><button class="tab" data-status="InProgress">В работе</button></div><label class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Найти задание" aria-label="Поиск заданий" maxlength="140"></label></div>
+            <div class="list-heading"><span id="list-caption">Твои задания</span><label class="sort-label">Порядок<select id="sort" aria-label="Порядок заданий"><option value="due">Сначала ближайшие</option><option value="new">Сначала новые</option><option value="subject">По предмету</option></select></label></div>
+            <div id="filter-info" class="filter-info" hidden><span id="filter-caption"></span><button id="clear-filters" class="text-button">Сбросить фильтры</button></div>
+            <div id="assignment-list" aria-live="polite"><p class="loading">Загружаем задания…</p></div>
+            <div class="list-footer"><span id="list-total">Пока нет заданий</span><span>Большие цели начинаются с маленьких шагов</span></div>
+          </section>
+          <aside class="right-column" aria-label="Планирование">
+            <section class="week-panel"><div class="section-heading"><h2>Эта неделя</h2><svg class="icon"><use href="#i-calendar"/></svg></div><p id="week-range" class="muted"></p><div class="week-days" id="week-days"></div><div class="nearest-heading">Ближайший срок</div><div id="nearest-task"></div></section>
+            <section class="progress-panel"><div class="section-heading"><h2>Твой прогресс</h2><span class="progress-symbol">✧</span></div><div class="progress-visual"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="progress-track" cx="60" cy="60" r="49"/><circle id="progress-circle" class="progress-fill" cx="60" cy="60" r="49" pathLength="100" stroke-dasharray="0 100"/></svg><strong id="progress-percent">0<span>%</span></strong></div><p id="progress-caption">Первое выполненное задание — начало прогресса.</p><div class="progress-legend"><span><i class="legend-dot teal"></i>Готово <b id="legend-done">0</b></span><span><i class="legend-dot pale"></i>Осталось <b id="legend-left">0</b></span></div></section>
+            <div class="quiet-note"><span>✦</span><p>Не обязательно сделать всё сегодня.<br>Начни с самого важного.</p></div>
+          </aside>
+        </div>
+        <footer class="page-footer">Зачёт <span>Меньше хаоса. Больше свободного времени.</span></footer>
+      </main>
+    </div>
+  </div>
+  <dialog id="task-dialog" aria-labelledby="task-dialog-title">
+    <form id="task-form"><div class="dialog-heading"><h2 id="task-dialog-title">Новое задание</h2><button type="button" class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <label>Название<input name="title" required maxlength="140" placeholder="Например, подготовить лабораторную № 2"></label>
+      <div class="form-row"><label>Предмет<select name="subjectId" required></select></label><label>Сдать до<input name="dueDate" type="date" required min="2000-01-01" max="2100-12-31"></label></div>
+      <label>Статус<select name="status"><option value="Todo">Нужно сделать</option><option value="InProgress">В работе</option><option value="Done">Выполнено</option></select></label>
+      <label>Описание <span class="optional">необязательно</span><textarea name="description" rows="4" maxlength="2000" placeholder="Что нужно сделать, требования или ссылка на материалы"></textarea></label>
+      <p class="form-error" role="alert"></p><div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Отмена</button><button class="primary-button" type="submit">Сохранить задание</button></div>
+    </form>
+  </dialog>
+  <dialog id="subject-dialog" aria-labelledby="subject-dialog-title">
+    <form id="subject-form"><div class="dialog-heading"><h2 id="subject-dialog-title">Новый предмет</h2><button type="button" class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <label>Название<input name="name" required maxlength="80" placeholder="Например, базы данных"></label>
+      <fieldset class="color-field"><legend>Цвет предмета</legend><div class="color-options">
+        <label class="color-option blue"><input type="radio" name="color" value="blue" checked><span>Синий</span></label>
+        <label class="color-option teal"><input type="radio" name="color" value="teal"><span>Бирюзовый</span></label>
+        <label class="color-option purple"><input type="radio" name="color" value="purple"><span>Фиолетовый</span></label>
+        <label class="color-option orange"><input type="radio" name="color" value="orange"><span>Оранжевый</span></label>
+        <label class="color-option pink"><input type="radio" name="color" value="pink"><span>Розовый</span></label>
+        <label class="color-option slate"><input type="radio" name="color" value="slate"><span>Серый</span></label>
+      </div></fieldset>
+      <p class="form-error" role="alert"></p><div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Отмена</button><button class="primary-button" type="submit">Добавить предмет</button></div>
+    </form>
+  </dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><form id="confirm-form"><h2 id="confirm-title">Удалить?</h2><p id="confirm-message"></p><p class="form-error" role="alert"></p><div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Отмена</button><button class="danger-button" type="submit">Удалить</button></div></form></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
