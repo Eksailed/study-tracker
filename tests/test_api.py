@@ -8,6 +8,7 @@ import socket
 import sqlite3
 import hashlib
 from contextlib import closing
+from support import Client
 import subprocess
 import tempfile
 import time
@@ -34,7 +35,7 @@ class TrackerApiTests(unittest.TestCase):
     def start_server(cls):
         cls.log = tempfile.TemporaryFile()
         env = dict(os.environ, ASPNETCORE_URLS=cls.base, Tracker__DataDirectory=cls.temp.name,
-                   DOTNET_ENVIRONMENT='Production')
+                   DOTNET_ENVIRONMENT='Development')
         migration = subprocess.run([DOTNET, str(ROOT / 'bin/Debug/net10.0/StudyTracker.dll'), '--migrate'],
                                    cwd=ROOT, env=env, capture_output=True, timeout=30)
         if migration.returncode:
@@ -46,6 +47,12 @@ class TrackerApiTests(unittest.TestCase):
             try:
                 with cls.client.open(cls.base + '/api/token', timeout=1) as response:
                     cls.token = json.load(response)['token']
+                session = Client(cls.base)
+                session.register('api@example.test')
+                if session.login('api@example.test')[0] != 200:
+                    raise RuntimeError('Не удалось войти тестовым пользователем')
+                cls.client = session.opener
+                cls.token = session.token
                 return
             except (OSError, urllib.error.URLError):
                 if cls.process.poll() is not None:
@@ -111,10 +118,11 @@ class TrackerApiTests(unittest.TestCase):
         subject = self.subject('Математика')
         valid = dict(title='Задачи', subjectId=subject, dueDate='2026-11-15', status='Todo')
         for invalid in ({'title': '  '}, {'title': 'a'*141}, {'description': 'a'*2001},
-                        {'subjectId': 999999}, {'dueDate': '1999-01-01'}, {'dueDate': '2101-01-01'},
+                        {'dueDate': '1999-01-01'}, {'dueDate': '2101-01-01'},
                         {'status': 99}, {'dueDate': 'ошибка'}, {'status': 'Unknown'}):
             with self.subTest(invalid=str(invalid)[:70]):
                 self.assertEqual(self.request('assignments', 'POST', valid | invalid)[0], 400)
+        self.assertEqual(self.request('assignments', 'POST', valid | {'subjectId': 999999})[0], 404)
 
     def test_subject_validation_and_cyrillic_duplicates(self):
         self.subject('Программирование')
@@ -172,7 +180,8 @@ class TrackerApiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(self.run_migrations(directory).returncode, 0)
             with closing(sqlite3.connect(Path(directory) / 'tracker.db')) as db, db:
-                db.execute("INSERT INTO Subjects (Name, NameKey, Color) VALUES ('Test', 'TEST', 'blue')")
+                db.execute("INSERT INTO AspNetUsers (Id, EmailConfirmed, PhoneNumberConfirmed, TwoFactorEnabled, LockoutEnabled, AccessFailedCount) VALUES ('test',0,0,0,0,0)")
+                db.execute("INSERT INTO Subjects (Name, NameKey, Color, OwnerId) VALUES ('Test', 'TEST', 'blue', 'test')")
             self.assertEqual(self.run_migrations(directory).returncode, 0)
             with closing(sqlite3.connect(Path(directory) / 'tracker.db')) as db, db:
                 self.assertEqual(db.execute('SELECT Name FROM Subjects').fetchone()[0], 'Test')

@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.EntityFrameworkCore;
 using StudyTracker;
+using System.Security.Claims;
 
 var migrate = args.Contains("--migrate");
 var builder = WebApplication.CreateBuilder(args.Where(a => a != "--migrate").ToArray());
@@ -15,6 +16,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AssignmentStatus>()));
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddProblemDetails();
+builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 builder.Services.AddTrackerAccounts(builder.Environment);
 
 var app = builder.Build();
@@ -30,6 +32,26 @@ catch (InvalidOperationException error)
     return;
 }
 if (migrate) return;
+if (args.Contains("--import-legacy"))
+{
+    try
+    {
+        string Option(string name)
+        {
+            var index = Array.IndexOf(args, name);
+            if (index < 0 || index + 1 >= args.Length || args[index + 1].StartsWith("--"))
+                throw new InvalidOperationException($"Укажите значение {name}.");
+            return args[index + 1];
+        }
+        await LegacyImport.RunAsync(app.Services, Option("--import-legacy"), Option("--owner"));
+    }
+    catch (Exception error) when (error is InvalidOperationException or Microsoft.Data.Sqlite.SqliteException or FormatException or DbUpdateException)
+    {
+        Console.Error.WriteLine("Перенос отменён: " + error.Message);
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 
 app.UseAuthentication();
 app.UseRateLimiter();
@@ -69,25 +91,28 @@ app.MapTrackerAccounts();
 app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
     Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
 
-app.MapGet("/api/subjects", async (TrackerDb db) =>
-    Results.Ok(await db.Subjects.OrderBy(s => s.Name).Select(s => new { s.Id, s.Name, s.Color }).ToListAsync()));
+var data = app.MapGroup("/api").RequireAuthorization();
+data.MapGet("/subjects", async (TrackerDb db, ClaimsPrincipal user) =>
+    Results.Ok(await db.Subjects.Where(s => s.OwnerId == user.FindFirstValue(ClaimTypes.NameIdentifier))
+        .OrderBy(s => s.Name).Select(s => new { s.Id, s.Name, s.Color }).ToListAsync()));
 
 var colors = new[] { "blue", "teal", "purple", "orange", "pink", "slate" };
-app.MapPost("/api/subjects", async (SubjectInput input, TrackerDb db) =>
+data.MapPost("/subjects", async (SubjectInput input, TrackerDb db, ClaimsPrincipal user) =>
 {
     var name = input.Name?.Trim() ?? "";
     if (name.Length is < 1 or > 80 || !colors.Contains(input.Color))
         return Results.BadRequest(new { error = "Укажите название предмета до 80 символов и выберите цвет." });
-    var subject = new Subject { Name = name, NameKey = name.ToUpperInvariant(), Color = input.Color! };
+    var subject = new Subject { Name = name, NameKey = name.ToUpperInvariant(), Color = input.Color!,
+        OwnerId = user.FindFirstValue(ClaimTypes.NameIdentifier)! };
     db.Subjects.Add(subject);
     try { await db.SaveChangesAsync(); }
     catch (DbUpdateException) { return Results.Conflict(new { error = "Такой предмет уже есть." }); }
     return Results.Created($"/api/subjects/{subject.Id}", new { subject.Id, subject.Name, subject.Color });
 });
 
-app.MapDelete("/api/subjects/{id:int}", async (int id, TrackerDb db) =>
+data.MapDelete("/subjects/{id:int}", async (int id, TrackerDb db, ClaimsPrincipal user) =>
 {
-    var subject = await db.Subjects.FindAsync(id);
+    var subject = await db.Subjects.SingleOrDefaultAsync(s => s.Id == id && s.OwnerId == user.FindFirstValue(ClaimTypes.NameIdentifier));
     if (subject is null) return Results.NotFound();
     if (await db.Assignments.AnyAsync(a => a.SubjectId == id))
         return Results.Conflict(new { error = "Сначала удалите задания предмета или перенесите их в другой предмет." });
@@ -97,25 +122,30 @@ app.MapDelete("/api/subjects/{id:int}", async (int id, TrackerDb db) =>
     return Results.NoContent();
 });
 
-app.MapGet("/api/assignments", async (TrackerDb db) =>
-    Results.Ok(await db.Assignments.AsNoTracking().OrderBy(a => a.DueDate).ThenBy(a => a.Id).ToListAsync()));
+data.MapGet("/assignments", async (TrackerDb db, ClaimsPrincipal user) =>
+    Results.Ok(await db.Assignments.AsNoTracking().Where(a => a.OwnerId == user.FindFirstValue(ClaimTypes.NameIdentifier))
+        .OrderBy(a => a.DueDate).ThenBy(a => a.Id).ToListAsync()));
 
-app.MapPost("/api/assignments", async (AssignmentInput input, TrackerDb db) =>
+data.MapPost("/assignments", async (AssignmentInput input, TrackerDb db, ClaimsPrincipal user) =>
 {
-    var error = await ValidateAssignment(input, db);
+    var owner = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
+    if (!await db.Subjects.AnyAsync(s => s.Id == input.SubjectId && s.OwnerId == owner)) return Results.NotFound();
+    var error = ValidateAssignment(input);
     if (error is not null) return Results.BadRequest(new { error });
     var assignment = new Assignment { Title = input.Title!.Trim(), Description = input.Description?.Trim() ?? "",
-        SubjectId = input.SubjectId, DueDate = input.DueDate, Status = input.Status };
+        SubjectId = input.SubjectId, OwnerId = owner, DueDate = input.DueDate, Status = input.Status };
     db.Assignments.Add(assignment);
     await db.SaveChangesAsync();
     return Results.Created($"/api/assignments/{assignment.Id}", assignment);
 });
 
-app.MapPut("/api/assignments/{id:int}", async (int id, AssignmentInput input, TrackerDb db) =>
+data.MapPut("/assignments/{id:int}", async (int id, AssignmentInput input, TrackerDb db, ClaimsPrincipal user) =>
 {
-    var assignment = await db.Assignments.FindAsync(id);
+    var owner = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
+    var assignment = await db.Assignments.SingleOrDefaultAsync(a => a.Id == id && a.OwnerId == owner);
     if (assignment is null) return Results.NotFound();
-    var error = await ValidateAssignment(input, db);
+    if (!await db.Subjects.AnyAsync(s => s.Id == input.SubjectId && s.OwnerId == owner)) return Results.NotFound();
+    var error = ValidateAssignment(input);
     if (error is not null) return Results.BadRequest(new { error });
     assignment.Title = input.Title!.Trim();
     assignment.Description = input.Description?.Trim() ?? "";
@@ -126,9 +156,9 @@ app.MapPut("/api/assignments/{id:int}", async (int id, AssignmentInput input, Tr
     return Results.Ok(assignment);
 });
 
-app.MapDelete("/api/assignments/{id:int}", async (int id, TrackerDb db) =>
+data.MapDelete("/assignments/{id:int}", async (int id, TrackerDb db, ClaimsPrincipal user) =>
 {
-    var assignment = await db.Assignments.FindAsync(id);
+    var assignment = await db.Assignments.SingleOrDefaultAsync(a => a.Id == id && a.OwnerId == user.FindFirstValue(ClaimTypes.NameIdentifier));
     if (assignment is null) return Results.NotFound();
     db.Assignments.Remove(assignment);
     await db.SaveChangesAsync();
@@ -137,7 +167,7 @@ app.MapDelete("/api/assignments/{id:int}", async (int id, TrackerDb db) =>
 
 app.Run();
 
-static async Task<string?> ValidateAssignment(AssignmentInput input, TrackerDb db)
+static string? ValidateAssignment(AssignmentInput input)
 {
     if (string.IsNullOrWhiteSpace(input.Title) || input.Title.Trim().Length > 140)
         return "Введите название задания от 1 до 140 символов.";
@@ -145,6 +175,5 @@ static async Task<string?> ValidateAssignment(AssignmentInput input, TrackerDb d
     if (!Enum.IsDefined(input.Status)) return "Выберите допустимый статус.";
     if (input.DueDate < new DateOnly(2000, 1, 1) || input.DueDate > new DateOnly(2100, 12, 31))
         return "Выберите срок между 2000 и 2100 годом.";
-    if (!await db.Subjects.AnyAsync(s => s.Id == input.SubjectId)) return "Выберите существующий предмет.";
     return null;
 }

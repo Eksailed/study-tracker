@@ -12,6 +12,7 @@ public class Subject
     public required string Name { get; set; }
     public required string NameKey { get; set; }
     public required string Color { get; set; }
+    public required string OwnerId { get; set; }
 }
 
 public class Assignment
@@ -20,6 +21,7 @@ public class Assignment
     public required string Title { get; set; }
     public string Description { get; set; } = "";
     public int SubjectId { get; set; }
+    public required string OwnerId { get; set; }
     public Subject? Subject { get; set; }
     public DateOnly DueDate { get; set; }
     public AssignmentStatus Status { get; set; }
@@ -37,9 +39,12 @@ public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<
     {
         base.OnModelCreating(model);
         model.Entity<ApplicationUser>().HasIndex(u => u.NormalizedEmail).IsUnique();
-        model.Entity<Subject>().HasIndex(s => s.NameKey).IsUnique();
+        model.Entity<Subject>().HasIndex(s => new { s.OwnerId, s.NameKey }).IsUnique();
+        model.Entity<Subject>().HasOne<ApplicationUser>().WithMany().HasForeignKey(s => s.OwnerId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<Assignment>().HasOne<ApplicationUser>().WithMany().HasForeignKey(a => a.OwnerId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Assignment>().HasOne(a => a.Subject).WithMany()
-            .HasForeignKey(a => a.SubjectId).OnDelete(DeleteBehavior.Restrict);
+            .HasForeignKey(a => new { a.SubjectId, a.OwnerId })
+            .HasPrincipalKey(s => new { s.Id, s.OwnerId }).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

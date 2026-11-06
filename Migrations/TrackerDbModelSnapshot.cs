@@ -226,6 +226,10 @@ namespace StudyTracker.Migrations
                     b.Property<DateOnly>("DueDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
@@ -238,7 +242,9 @@ namespace StudyTracker.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SubjectId");
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("SubjectId", "OwnerId");
 
                     b.ToTable("Assignments");
                 });
@@ -261,9 +267,13 @@ namespace StudyTracker.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("NameKey")
+                    b.HasIndex("OwnerId", "NameKey")
                         .IsUnique();
 
                     b.ToTable("Subjects");
@@ -322,13 +332,29 @@ namespace StudyTracker.Migrations
 
             modelBuilder.Entity("StudyTracker.Assignment", b =>
                 {
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("StudyTracker.Subject", "Subject")
                         .WithMany()
-                        .HasForeignKey("SubjectId")
+                        .HasForeignKey("SubjectId", "OwnerId")
+                        .HasPrincipalKey("Id", "OwnerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Subject");
+                });
+
+            modelBuilder.Entity("StudyTracker.Subject", b =>
+                {
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

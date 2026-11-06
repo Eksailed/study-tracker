@@ -24,6 +24,16 @@ public static class DatabaseSetup
                 throw new InvalidOperationException("Найдена старая база без истории миграций. Она не изменена. " +
                     "Укажите новую папку через Tracker__DataDirectory и выполните --migrate; " +
                     "старые записи перенесите отдельной командой импорта.");
+            await reader.DisposeAsync();
+            if (tables.Contains("Subjects"))
+            {
+                command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Subjects') WHERE name='OwnerId'";
+                var hasOwner = Convert.ToInt64(await command.ExecuteScalarAsync()) > 0;
+                command.CommandText = "SELECT COUNT(*) FROM Subjects";
+                if (!hasOwner && Convert.ToInt64(await command.ExecuteScalarAsync()) > 0)
+                    throw new InvalidOperationException("В базе есть общие предметы без владельца. Сохраните её, " +
+                        "создайте новую базу через Tracker__DataDirectory и перенесите записи командой --import-legacy с --owner.");
+            }
         }
         if (migrate)
         {
