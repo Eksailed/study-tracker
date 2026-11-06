@@ -69,7 +69,7 @@ class Server:
             sock.bind(('127.0.0.1', 0))
             self.base = f'http://127.0.0.1:{sock.getsockname()[1]}'
         self.env = dict(os.environ, ASPNETCORE_URLS=self.base, Tracker__DataDirectory=self.temp.name,
-                        DOTNET_ENVIRONMENT='Development')
+                        DOTNET_ENVIRONMENT='Development', Telegram__BotToken='')
         self.env.update(settings)
 
     def start(self):

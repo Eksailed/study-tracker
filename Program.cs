@@ -9,7 +9,8 @@ using System.Net;
 using StudyTracker.Notifications;
 
 var migrate = args.Contains("--migrate");
-var builder = WebApplication.CreateBuilder(args.Where(a => a != "--migrate").ToArray());
+var commandFlags = new[] { "--migrate", "--telegram-poll", "--notifications-tick" };
+var builder = WebApplication.CreateBuilder(args.Where(a => !commandFlags.Contains(a)).ToArray());
 var dataDirectory = builder.Configuration["Tracker:DataDirectory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "v02");
 Directory.CreateDirectory(dataDirectory);
@@ -40,7 +41,7 @@ builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddProblemDetails();
 builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 builder.Services.AddTrackerAccounts(builder.Environment);
-builder.Services.AddSingleton(builder.Configuration.GetSection("Telegram").Get<TelegramOptions>() ?? new TelegramOptions());
+builder.AddNotifications();
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -55,6 +56,14 @@ catch (InvalidOperationException error)
     return;
 }
 if (migrate) return;
+if (args.Contains("--telegram-poll"))
+{
+    var telegram = app.Services.GetRequiredService<TelegramClient>();
+    if (await telegram.InitializeAsync(CancellationToken.None))
+        await app.Services.GetRequiredService<TelegramUpdateWorker>().PollAsync(CancellationToken.None, timeout: 0);
+    else { Console.Error.WriteLine(telegram.Status); Environment.ExitCode = 1; }
+    return;
+}
 if (args.Contains("--create-account"))
 {
     try

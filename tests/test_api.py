@@ -35,7 +35,7 @@ class TrackerApiTests(unittest.TestCase):
     def start_server(cls):
         cls.log = tempfile.TemporaryFile()
         env = dict(os.environ, ASPNETCORE_URLS=cls.base, Tracker__DataDirectory=cls.temp.name,
-                   DOTNET_ENVIRONMENT='Development')
+                   DOTNET_ENVIRONMENT='Development', Telegram__BotToken='')
         migration = subprocess.run([DOTNET, str(ROOT / 'bin/Debug/net10.0/StudyTracker.dll'), '--migrate'],
                                    cwd=ROOT, env=env, capture_output=True, timeout=30)
         if migration.returncode:
