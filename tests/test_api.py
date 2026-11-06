@@ -196,6 +196,18 @@ class TrackerApiTests(unittest.TestCase):
             self.assertEqual(self.run_migrations(directory).returncode, 1)
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), before)
 
+    def test_shared_migrated_database_is_not_modified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'tracker.db'
+            with closing(sqlite3.connect(path)) as db, db:
+                db.executescript('''CREATE TABLE Subjects (Id INTEGER PRIMARY KEY,Name TEXT,NameKey TEXT,Color TEXT);
+                    CREATE TABLE __EFMigrationsHistory (MigrationId TEXT PRIMARY KEY,ProductVersion TEXT);''')
+                db.execute("INSERT INTO Subjects VALUES (1,'Общий предмет','ОБЩИЙ ПРЕДМЕТ','blue')")
+                db.execute("INSERT INTO __EFMigrationsHistory VALUES ('old_schema','10.0.14')")
+            before = hashlib.sha256(path.read_bytes()).hexdigest()
+            self.assertEqual(self.run_migrations(directory).returncode, 1)
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), before)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

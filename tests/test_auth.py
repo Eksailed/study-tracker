@@ -73,6 +73,15 @@ class AccountTests(unittest.TestCase):
         with running_server(DOTNET_ENVIRONMENT='Production') as server:
             self.assertEqual(server.client().register('prod@example.test')[0], 403)
 
+    def test_production_cookie_requires_https(self):
+        with running_server(DOTNET_ENVIRONMENT='Production', Accounts__AllowRegistration='true') as server:
+            client = server.client()
+            self.assertEqual(client.register('secure@example.test')[0], 201)
+            self.assertEqual(client.login('secure@example.test')[0], 200)
+            cookie = next(c for c in client.jar if c.name == 'Zachet.Account')
+            self.assertTrue(cookie.secure)
+            self.assertEqual(client.request('auth/me')[0], 401)
+
     def test_login_rotates_csrf_identity(self):
         with running_server() as server:
             client = server.client()

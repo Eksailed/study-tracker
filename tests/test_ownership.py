@@ -63,6 +63,36 @@ class OwnershipTests(unittest.TestCase):
         self.subject(self.b)
         self.assertEqual(self.a.request('subjects', 'POST', dict(name='математика',color='teal'))[0], 409)
 
+    def test_two_users_survive_restart(self):
+        subject_a = self.subject(self.a, 'Предмет А')
+        subject_b = self.subject(self.b, 'Предмет Б')
+        task_a = self.task(self.a, subject_a)[1]
+        task_b = self.task(self.b, subject_b)[1]
+        self.server.stop()
+        self.server.start()
+        self.assertEqual(self.a.login('a@example.test')[0], 200)
+        self.assertEqual(self.b.login('b@example.test')[0], 200)
+        self.assertEqual([a['id'] for a in self.a.request('assignments')[1]], [task_a['id']])
+        self.assertEqual([a['id'] for a in self.b.request('assignments')[1]], [task_b['id']])
+
+    def test_cross_account_csrf_is_rejected(self):
+        token_b = self.b.token
+        self.b.token = self.a.token
+        self.assertEqual(self.b.request('subjects', 'POST', dict(name='Чужой токен',color='blue'))[0], 400)
+        self.b.token = token_b
+        self.assertEqual(self.b.request('subjects')[1], [])
+
+    def test_owner_id_from_body_is_ignored(self):
+        owner_b = self.b.request('auth/me')[1]['id']
+        code, subject = self.a.request('subjects', 'POST', dict(name='Мой предмет',color='blue',ownerId=owner_b))
+        self.assertEqual(code, 201)
+        code, task = self.a.request('assignments', 'POST', dict(title='Моё задание',subjectId=subject['id'],
+                                    dueDate='2026-12-10',status='Todo',ownerId=owner_b))
+        self.assertEqual(code, 201)
+        self.assertNotEqual(task['ownerId'], owner_b)
+        self.assertEqual(self.b.request('subjects')[1], [])
+        self.assertEqual(self.a.headers['X-Account-Id'], task['ownerId'])
+
     def legacy_database(self, directory, invalid=False):
         path = Path(directory)/'old.db'
         with closing(sqlite3.connect(path)) as db, db:
