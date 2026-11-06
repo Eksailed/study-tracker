@@ -9,7 +9,7 @@ using System.Net;
 using StudyTracker.Notifications;
 
 var migrate = args.Contains("--migrate");
-var commandFlags = new[] { "--migrate", "--telegram-poll", "--notifications-tick" };
+var commandFlags = new[] { "--migrate", "--telegram-poll", "--notifications-tick", "--notifications-plan" };
 var builder = WebApplication.CreateBuilder(args.Where(a => !commandFlags.Contains(a)).ToArray());
 var dataDirectory = builder.Configuration["Tracker:DataDirectory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "v02");
@@ -56,6 +56,14 @@ catch (InvalidOperationException error)
     return;
 }
 if (migrate) return;
+if (args.Contains("--notifications-plan"))
+{
+    var telegram = app.Services.GetRequiredService<TelegramClient>();
+    if (await telegram.InitializeAsync(CancellationToken.None))
+        await app.Services.GetRequiredService<ReminderPlanner>().PlanAsync(CancellationToken.None);
+    else { Console.Error.WriteLine(telegram.Status); Environment.ExitCode = 1; }
+    return;
+}
 if (args.Contains("--telegram-poll"))
 {
     var telegram = app.Services.GetRequiredService<TelegramClient>();

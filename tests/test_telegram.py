@@ -4,38 +4,11 @@ import sqlite3
 import time
 import unittest
 from urllib.parse import urlparse, parse_qs
-from support import Server
-from fake_telegram import FakeTelegram, TOKEN
+from fake_telegram import TOKEN
+from telegram_support import TelegramFixture
 
 
-class TelegramTests(unittest.TestCase):
-    def setUp(self):
-        self.fake = FakeTelegram()
-        self.addCleanup(self.fake.close)
-        self.server = Server(Telegram__BotToken=TOKEN,Telegram__ApiBase=self.fake.base,
-                             Telegram__ManualMode='true',Testing__UtcNow='2026-11-11T15:00:00Z').start()
-        self.addCleanup(self.server.close)
-        self.client = self.server.client()
-        self.client.register('telegram@example.test')
-        self.client.login('telegram@example.test')
-        self.wait_ready()
-
-    def wait_ready(self):
-        for _ in range(50):
-            if self.client.request('notifications/settings')[1]['ready']:
-                return
-            time.sleep(.1)
-        self.fail('Подмена Telegram не подключилась')
-
-    def code(self, client=None):
-        code,data = (client or self.client).request('notifications/code','POST')
-        self.assertEqual(code,200,data)
-        return parse_qs(urlparse(data['url']).query)['start'][0]
-
-    def poll(self):
-        result = self.server.command('--telegram-poll')
-        self.assertEqual(result.returncode,0,result.stderr)
-
+class TelegramTests(TelegramFixture,unittest.TestCase):
     def test_binding_code_is_single_use(self):
         code = self.code()
         self.fake.update(code)
@@ -117,7 +90,19 @@ class TelegramTests(unittest.TestCase):
         self.poll()
         result = self.server.command('--telegram-poll')
         self.assertNotIn(TOKEN,(result.stdout+result.stderr).decode('utf-8',errors='replace'))
+        self.server.log.seek(0)
+        self.assertNotIn(TOKEN,self.server.log.read().decode('utf-8',errors='replace'))
+
+    def test_existing_webhook_is_not_removed(self):
+        self.fake.webhook = 'https://example.test/existing-hook'
         self.server.stop()
+        self.server.start()
+        for _ in range(50):
+            if 'webhook' in self.client.request('notifications/settings')[1]['botStatus']:
+                break
+            time.sleep(.1)
+        self.assertEqual(self.client.request('notifications/code','POST')[0],503)
+        self.assertNotIn('deleteWebhook',self.fake.calls)
 
 
 if __name__ == '__main__':

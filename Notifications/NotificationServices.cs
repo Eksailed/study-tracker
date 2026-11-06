@@ -19,9 +19,11 @@ public static class NotificationServices
         builder.Services.AddSingleton(clock);
         builder.Services.AddSingleton<TelegramClient>();
         builder.Services.AddSingleton<TelegramUpdateWorker>();
+        builder.Services.AddSingleton<ReminderPlanner>();
         if (options.Configured)
         {
             builder.Services.AddHostedService<TelegramPollingService>();
+            builder.Services.AddHostedService<ReminderPlanningService>();
         }
     }
 }
