@@ -76,18 +76,3 @@ public sealed class ReminderPlanner(IServiceScopeFactory scopes, TimeProvider cl
     }
 }
 
-public sealed class ReminderPlanningService(ReminderPlanner planner, TelegramOptions options, IWebHostEnvironment environment,
-    ILogger<ReminderPlanningService> logger) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        if (environment.IsDevelopment() && options.ManualMode) return;
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try { await planner.PlanAsync(stoppingToken); }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception) { logger.LogWarning("Не удалось обновить очередь напоминаний; повтор через минуту."); }
-            await Task.Delay(60000, stoppingToken);
-        }
-    }
-}

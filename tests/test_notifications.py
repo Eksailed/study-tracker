@@ -56,7 +56,7 @@ class NotificationTests(unittest.TestCase):
         with closing(sqlite3.connect(Path(self.server.temp.name)/'tracker.db')) as db, db:
             for table in ('ReminderDeliveries','TelegramLinkCodes','TelegramConnections','NotificationSettings','TelegramUpdateStates'):
                 db.execute(f'DROP TABLE {table}')
-            db.execute("DELETE FROM __EFMigrationsHistory WHERE MigrationId LIKE '%_Notifications'")
+            db.execute("DELETE FROM __EFMigrationsHistory WHERE MigrationId >= (SELECT MigrationId FROM __EFMigrationsHistory WHERE MigrationId LIKE '%_Notifications')")
         self.server.start()
         self.assertEqual(self.client.request('auth/me')[0],200)
         self.assertEqual(self.client.request('assignments')[1][0]['id'],task['id'])

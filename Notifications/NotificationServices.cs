@@ -20,10 +20,11 @@ public static class NotificationServices
         builder.Services.AddSingleton<TelegramClient>();
         builder.Services.AddSingleton<TelegramUpdateWorker>();
         builder.Services.AddSingleton<ReminderPlanner>();
+        builder.Services.AddSingleton<ReminderSender>();
         if (options.Configured)
         {
             builder.Services.AddHostedService<TelegramPollingService>();
-            builder.Services.AddHostedService<ReminderPlanningService>();
+            builder.Services.AddHostedService<ReminderService>();
         }
     }
 }

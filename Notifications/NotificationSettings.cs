@@ -26,6 +26,7 @@ public class TelegramConnection
     public long ChatId { get; set; }
     public long BotId { get; set; }
     public string? Problem { get; set; }
+    public long? LastRequestAt { get; set; }
 }
 
 public class TelegramLinkCode

@@ -43,7 +43,7 @@ public sealed class TelegramClient : IDisposable
             if (response.IsSuccessStatusCode && root.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True
                 && root.TryGetProperty("result", out var result)) return new(200, result.Clone());
             var code = root.TryGetProperty("error_code", out var error) && error.TryGetInt32(out var number)
-                ? number : (int)response.StatusCode;
+                ? number : response.IsSuccessStatusCode ? 0 : (int)response.StatusCode;
             var retry = root.TryGetProperty("parameters", out var parameters) && parameters.TryGetProperty("retry_after", out var delay)
                 && delay.TryGetInt32(out var seconds) ? Math.Clamp(seconds, 1, 86400) : 1;
             return new(code, default, retry);

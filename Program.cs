@@ -56,6 +56,19 @@ catch (InvalidOperationException error)
     return;
 }
 if (migrate) return;
+if (args.Contains("--notifications-tick"))
+{
+    var telegram = app.Services.GetRequiredService<TelegramClient>();
+    if (await telegram.InitializeAsync(CancellationToken.None))
+    {
+        var sender = app.Services.GetRequiredService<ReminderSender>();
+        await sender.RecoverAsync(CancellationToken.None);
+        await app.Services.GetRequiredService<ReminderPlanner>().PlanAsync(CancellationToken.None);
+        await sender.SendPendingAsync(CancellationToken.None);
+    }
+    else { Console.Error.WriteLine(telegram.Status); Environment.ExitCode = 1; }
+    return;
+}
 if (args.Contains("--notifications-plan"))
 {
     var telegram = app.Services.GetRequiredService<TelegramClient>();

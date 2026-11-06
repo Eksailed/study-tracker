@@ -359,6 +359,9 @@ namespace StudyTracker.Migrations
                     b.Property<long>("ChatId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("LastRequestAt")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Problem")
                         .HasColumnType("TEXT");
 
