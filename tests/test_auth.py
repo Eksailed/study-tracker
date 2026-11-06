@@ -82,6 +82,21 @@ class AccountTests(unittest.TestCase):
             self.assertTrue(cookie.secure)
             self.assertEqual(client.request('auth/me')[0], 401)
 
+    def test_cli_creates_account_without_opening_registration(self):
+        with running_server(Accounts__AllowRegistration='false') as server:
+            result = server.command('--create-account','cli@example.test',input=b'cli-test-password-2026\n')
+            self.assertEqual(result.returncode,0,result.stderr)
+            client = server.client()
+            self.assertEqual(client.login('cli@example.test','cli-test-password-2026')[0],200)
+            self.assertFalse(client.request('auth/options')[1]['allowRegistration'])
+            self.assertEqual(server.command('--create-account','cli@example.test',input=b'other-test-password\n').returncode,1)
+            self.assertEqual(client.login('cli@example.test','cli-test-password-2026')[0],200)
+
+    def test_cli_rejects_short_password(self):
+        with running_server() as server:
+            self.assertEqual(server.command('--create-account','short-cli@example.test',input=b'short\n').returncode,1)
+            self.assertEqual(server.client().login('short-cli@example.test')[0],401)
+
     def test_login_rotates_csrf_identity(self):
         with running_server() as server:
             client = server.client()

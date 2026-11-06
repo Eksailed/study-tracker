@@ -3,12 +3,33 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.EntityFrameworkCore;
 using StudyTracker;
 using System.Security.Claims;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 
 var migrate = args.Contains("--migrate");
 var builder = WebApplication.CreateBuilder(args.Where(a => a != "--migrate").ToArray());
 var dataDirectory = builder.Configuration["Tracker:DataDirectory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "v02");
 Directory.CreateDirectory(dataDirectory);
+var keyDirectory = builder.Configuration["Tracker:KeyDirectory"] ?? Path.Combine(dataDirectory, "keys");
+Directory.CreateDirectory(keyDirectory);
+builder.Services.AddDataProtection().SetApplicationName("Zachet")
+    .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
+var proxyAddress = builder.Configuration["Proxy:KnownAddress"];
+if (!string.IsNullOrWhiteSpace(proxyAddress))
+{
+    var address = IPAddress.Parse(proxyAddress);
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+        options.KnownProxies.Add(address);
+        options.KnownProxies.Add(address.MapToIPv6());
+    });
+}
 builder.Services.AddDbContext<TrackerDb>(options => options.UseSqlite(
     new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
     { DataSource = Path.Combine(dataDirectory, "tracker.db"), ForeignKeys = true }.ToString()));
@@ -32,6 +53,21 @@ catch (InvalidOperationException error)
     return;
 }
 if (migrate) return;
+if (args.Contains("--create-account"))
+{
+    try
+    {
+        var index = Array.IndexOf(args, "--create-account");
+        if (index + 1 >= args.Length) throw new InvalidOperationException("Укажите почту после --create-account.");
+        await AccountCommands.CreateAsync(app.Services, args[index + 1]);
+    }
+    catch (InvalidOperationException error)
+    {
+        Console.Error.WriteLine(error.Message);
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 if (args.Contains("--import-legacy"))
 {
     try
@@ -53,6 +89,8 @@ if (args.Contains("--import-legacy"))
     return;
 }
 
+if (!string.IsNullOrWhiteSpace(proxyAddress)) app.UseForwardedHeaders();
+if (!app.Environment.IsDevelopment()) app.UseHsts();
 app.UseAuthentication();
 app.Use(async (context, next) =>
 {
@@ -93,6 +131,7 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapTrackerAccounts();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
     Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));

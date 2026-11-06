@@ -1,0 +1,56 @@
+services:
+  migrate:
+    image: ${TRACKER_IMAGE:-study-tracker:local}
+    build: .
+    command: ["--migrate"]
+    environment: &settings
+      DOTNET_ENVIRONMENT: Production
+      Tracker__DataDirectory: /data
+      Tracker__KeyDirectory: /keys
+      Accounts__AllowRegistration: "false"
+      AllowedHosts: ${DOMAIN:-localhost}
+      Proxy__KnownAddress: ${PROXY_IP:-172.30.0.2}
+    volumes: &storage
+      - data:/data
+      - keys:/keys
+    networks:
+      - backend
+    restart: "no"
+  app:
+    image: ${TRACKER_IMAGE:-study-tracker:local}
+    environment: *settings
+    volumes: *storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+    restart: unless-stopped
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "${BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-80}:80"
+      - "${BIND_ADDRESS:-0.0.0.0}:${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      backend:
+        ipv4_address: ${PROXY_IP:-172.30.0.2}
+    depends_on:
+      - app
+    restart: unless-stopped
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: ${BACKEND_SUBNET:-172.30.0.0/24}
+          ip_range: ${BACKEND_POOL:-172.30.0.128/25}
+volumes:
+  data:
+  keys:
+  caddy_data:
+  caddy_config:

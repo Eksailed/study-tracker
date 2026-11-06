@@ -13,3 +13,4 @@ __pycache__/
 !.env.example
 *.pfx
 *.key
+backups/

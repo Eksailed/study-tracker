@@ -19,10 +19,13 @@ COMMAND = [DOTNET, str(ROOT / 'bin/Debug/net10.0/StudyTracker.dll')]
 
 
 class Client:
-    def __init__(self, base):
+    def __init__(self, base, ssl_context=None):
         self.base = base
         self.jar = http.cookiejar.CookieJar()
-        self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
+        handlers = [urllib.request.HTTPCookieProcessor(self.jar)]
+        if ssl_context is not None:
+            handlers.append(urllib.request.HTTPSHandler(context=ssl_context))
+        self.opener = urllib.request.build_opener(*handlers)
         self.token = None
         self.headers = {}
         self.refresh_token()
@@ -86,8 +89,8 @@ class Server:
         self.log.seek(0)
         raise RuntimeError(self.log.read().decode('utf-8', errors='replace'))
 
-    def command(self, *args):
-        return subprocess.run(COMMAND + list(args), cwd=ROOT, env=self.env, capture_output=True, timeout=30)
+    def command(self, *args, input=None):
+        return subprocess.run(COMMAND + list(args), cwd=ROOT, env=self.env, input=input, capture_output=True, timeout=30)
 
     def stop(self):
         if hasattr(self, 'process'):

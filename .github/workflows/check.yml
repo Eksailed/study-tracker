@@ -46,3 +46,21 @@ jobs:
         run: node --check wwwroot/app.js
       - name: Проверить API и сохранение данных
         run: python -m unittest discover -s tests -v
+  deployment:
+    name: HTTPS, перезапуск и резервная копия
+    runs-on: ubuntu-latest
+    needs: check
+    timeout-minutes: 15
+    steps:
+      - name: Получить исходники
+        uses: actions/checkout@v7.0.1
+      - name: Установить Python
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: '3.11'
+      - name: Проверить настройки контейнеров
+        run: docker compose config --quiet
+      - name: Собрать образ приложения
+        run: docker build -t study-tracker:local .
+      - name: Проверить HTTPS и восстановление данных
+        run: python tests/test_deployment.py

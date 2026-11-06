@@ -1,0 +1,15 @@
+.git
+.github
+bin
+obj
+App_Data
+.env
+.env.*
+tests
+docs
+*.db
+*.db-shm
+*.db-wal
+*.pfx
+*.key
+*.log
