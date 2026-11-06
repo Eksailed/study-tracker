@@ -47,7 +47,7 @@ public sealed class TelegramClient : IDisposable
                 && delay.TryGetInt32(out var seconds) ? Math.Clamp(seconds, 1, 86400) : 1;
             return new(code, default, retry);
         }
-        catch (Exception error) when (error is HttpRequestException or OperationCanceledException or JsonException or InvalidOperationException)
+        catch (Exception error) when (error is HttpRequestException or IOException or OperationCanceledException or JsonException or InvalidOperationException)
         { return new(0, default); }
     }
 

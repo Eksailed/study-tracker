@@ -3,6 +3,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import threading
 import socket
+import time
 
 TOKEN = '123456:fake-token-for-tests'
 
@@ -46,6 +47,19 @@ class FakeTelegram:
                             if response == 'disconnect':
                                 self.connection.shutdown(socket.SHUT_RDWR)
                                 self.connection.close()
+                                return
+                            if response == 'timeout':
+                                time.sleep(11)
+                                self.close_connection = True
+                                return
+                            if response == 'truncated':
+                                self.send_response(200)
+                                self.send_header('Content-Type','application/json')
+                                self.send_header('Content-Length','100')
+                                self.end_headers()
+                                self.wfile.write(b'{"ok":')
+                                self.wfile.flush()
+                                self.close_connection = True
                                 return
                             self.reply(response.get('error_code',200),response)
                             return

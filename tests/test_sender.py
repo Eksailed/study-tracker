@@ -100,6 +100,22 @@ class SenderTests(TelegramFixture,unittest.TestCase):
         self.tick()
         self.assertEqual(len(self.fake.messages),1)
 
+    def test_timeout_is_unknown_without_automatic_retry(self):
+        self.prepare()
+        self.fake.responses.append('timeout')
+        self.tick()
+        self.assertEqual(self.rows()[0]['State'],4)
+        self.tick()
+        self.assertEqual(len(self.fake.messages),1)
+
+    def test_truncated_response_is_unknown_without_automatic_retry(self):
+        self.prepare()
+        self.fake.responses.append('truncated')
+        self.tick()
+        self.assertEqual(self.rows()[0]['State'],4)
+        self.tick()
+        self.assertEqual(len(self.fake.messages),1)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
