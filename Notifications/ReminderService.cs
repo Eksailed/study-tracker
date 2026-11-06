@@ -6,7 +6,6 @@ public sealed class ReminderService(ReminderPlanner planner, ReminderSender send
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (environment.IsDevelopment() && options.ManualMode) return;
-        await sender.RecoverAsync(stoppingToken);
         long lastPlan = long.MinValue / 2;
         while (!stoppingToken.IsCancellationRequested)
         {

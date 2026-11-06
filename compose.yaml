@@ -18,7 +18,10 @@ services:
     restart: "no"
   app:
     image: ${TRACKER_IMAGE:-study-tracker:local}
-    environment: *settings
+    environment:
+      <<: *settings
+      Telegram__BotToken: ${TELEGRAM_BOT_TOKEN:-}
+      Telegram__PublicUrl: https://${DOMAIN:-localhost}
     volumes: *storage
     depends_on:
       migrate:

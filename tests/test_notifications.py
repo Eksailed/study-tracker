@@ -21,6 +21,15 @@ class NotificationTests(unittest.TestCase):
         self.assertEqual(settings['timeZone'],'Europe/Moscow')
         self.assertEqual((settings['beforeTime'],settings['dueTime']),('19:00','09:00'))
 
+    def test_restart_without_token_marks_inflight_unknown(self):
+        owner = self.client.request('auth/me')[1]['id']
+        self.server.stop()
+        with closing(sqlite3.connect(Path(self.server.temp.name)/'tracker.db')) as db, db:
+            db.execute('''INSERT INTO ReminderDeliveries(OwnerId,Kind,ScheduledAt,NextAttemptAt,ExpiresAt,
+                          BindingVersion,State,Attempts) VALUES (?,2,0,0,0,0,1,1)''',(owner,))
+        self.server.start()
+        self.assertEqual(self.client.request('notifications/settings')[1]['lastDelivery']['state'],'Unknown')
+
     def test_settings_are_private(self):
         settings = dict(enabled=False,timeZone='Asia/Yekaterinburg',beforeEnabled=True,beforeTime='18:30',dueEnabled=False,dueTime='08:00')
         self.assertEqual(self.client.request('notifications/settings','PUT',settings)[0],204)

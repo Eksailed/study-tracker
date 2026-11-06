@@ -243,6 +243,7 @@ data.MapDelete("/assignments/{id:int}", async (int id, TrackerDb db, ClaimsPrinc
     return Results.NoContent();
 });
 
+await app.Services.GetRequiredService<ReminderSender>().RecoverAsync(CancellationToken.None);
 app.Run();
 
 static string? ValidateAssignment(AssignmentInput input)

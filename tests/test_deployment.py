@@ -13,12 +13,15 @@ import time
 import unittest
 import urllib.request
 import uuid
+import tempfile
+from urllib.parse import urlparse, parse_qs
 from support import Client, ROOT
 
 
-@unittest.skipUnless(__name__ == '__main__' or os.environ.get('RUN_DEPLOYMENT_TESTS') == '1',
-                     'Контейнерные проверки запускаются отдельно')
-class DeploymentTests(unittest.TestCase):
+DEPLOYMENT_ENABLED = __name__ == '__main__' or os.environ.get('RUN_DEPLOYMENT_TESTS') == '1'
+
+
+class DeploymentFixture:
     @classmethod
     def setUpClass(cls):
         cls.prefix = 'zachet-test-' + uuid.uuid4().hex[:10]
@@ -32,7 +35,25 @@ class DeploymentTests(unittest.TestCase):
         cls.env = dict(os.environ, DOMAIN='localhost', BIND_ADDRESS='127.0.0.1',
                        HTTP_PORT=free_port(), HTTPS_PORT=free_port(),
                        TRACKER_IMAGE=os.environ.get('TRACKER_TEST_IMAGE','study-tracker:local'),
-                       BACKEND_SUBNET='172.29.246.0/24', BACKEND_POOL='172.29.246.128/25', PROXY_IP='172.29.246.2')
+                       BACKEND_SUBNET='172.29.246.0/24', BACKEND_POOL='172.29.246.128/25', PROXY_IP='172.29.246.2',
+                       TELEGRAM_BOT_TOKEN='')
+        cls.override = None
+        cls.override_directory = None
+        if getattr(cls,'telegram',False):
+            from fake_telegram import TOKEN
+            cls.override_directory = tempfile.TemporaryDirectory(prefix='zachet-compose-')
+            cls.override = Path(cls.override_directory.name)/'telegram.json'
+            fake_port = free_port()
+            cls.fake_base = 'http://127.0.0.1:'+fake_port
+            config = {'services':{
+                'fake-telegram':{'image':'python:3.11-alpine','command':['python','-u','/tests/fake_telegram.py'],
+                    'volumes':[{'type':'bind','source':(ROOT/'tests').as_posix(),'target':'/tests','read_only':True}],
+                    'ports':[f'127.0.0.1:{fake_port}:8081'],'networks':['backend']},
+                'app':{'environment':{'DOTNET_ENVIRONMENT':'Development','Telegram__BotToken':TOKEN,
+                    'Telegram__ApiBase':'http://fake-telegram:8081','Telegram__ManualMode':'true',
+                    'Testing__UtcNow':'2026-11-11T15:00:00Z'},
+                    'depends_on':{'fake-telegram':{'condition':'service_started'}}}}}
+            cls.override.write_text(json.dumps(config),encoding='utf-8')
         cls.base = 'https://localhost:' + cls.env['HTTPS_PORT']
         cls.context = ssl.create_default_context()
         try:
@@ -68,7 +89,10 @@ class DeploymentTests(unittest.TestCase):
 
     @classmethod
     def compose(cls,*args,**kwargs):
-        return cls.docker('compose','-f',str(ROOT/'compose.yaml'),'-p',cls.project,*args,**kwargs)
+        files = ['-f',str(ROOT/'compose.yaml')]
+        if cls.override is not None:
+            files += ['-f',str(cls.override)]
+        return cls.docker('compose',*files,'-p',cls.project,*args,**kwargs)
 
     @classmethod
     def load_ca_and_wait(cls):
@@ -101,6 +125,8 @@ class DeploymentTests(unittest.TestCase):
             cls.project = project
             cls.compose('down','--volumes','--remove-orphans',check=False)
         cls.docker('volume','rm',cls.backup_volume,check=False)
+        if cls.override_directory is not None:
+            cls.override_directory.cleanup()
 
     @classmethod
     def tearDownClass(cls):
@@ -113,6 +139,14 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual([t['id'] for t in tasks],[self.expected[name]])
             self.assertEqual(tasks[0]['status'],'InProgress')
             self.assertEqual(tasks[0]['dueDate'],'2026-12-20')
+
+@unittest.skipUnless(DEPLOYMENT_ENABLED,'Контейнерные проверки запускаются отдельно')
+class DeploymentTests(DeploymentFixture,unittest.TestCase):
+    def test_worker_is_disabled_without_token(self):
+        settings = self.a.request('notifications/settings')[1]
+        self.assertFalse(settings['configured'])
+        self.assertFalse(settings['ready'])
+        self.assertEqual(self.a.request('assignments')[0],200)
 
     def test_health_returns_200(self):
         with urllib.request.urlopen(self.base+'/health',context=self.context) as response:
@@ -151,6 +185,55 @@ class DeploymentTests(unittest.TestCase):
         self.load_ca_and_wait()
         self.assert_records()
         self.assertEqual(self.a.request('auth/me')[0],200)
+
+
+@unittest.skipUnless(DEPLOYMENT_ENABLED,'Контейнерные проверки запускаются отдельно')
+class TelegramDeploymentTests(DeploymentFixture,unittest.TestCase):
+    telegram = True
+
+    def fake(self, path, data=None):
+        request = urllib.request.Request(self.fake_base+'/test/'+path,
+                    data=None if data is None else json.dumps(data).encode(),
+                    headers={'Content-Type':'application/json'})
+        with urllib.request.urlopen(request,timeout=5) as response:
+            return json.load(response)
+
+    def wait_ready(self):
+        for _ in range(100):
+            if self.a.request('notifications/settings')[1]['ready']:
+                return
+            time.sleep(.1)
+        self.fail('Контейнер не подключился к подмене Telegram')
+
+    def test_migration_command_does_not_start_bot(self):
+        self.wait_ready()
+        before = self.fake('calls')
+        self.compose('run','--rm','--no-deps','-T','migrate')
+        self.assertEqual(self.fake('calls'),before)
+
+    def test_telegram_binding_and_confirmed_reminder_survive_restart(self):
+        self.wait_ready()
+        code,data = self.a.request('notifications/code','POST')
+        self.assertEqual(code,200,data)
+        link = parse_qs(urlparse(data['url']).query)['start'][0]
+        self.fake('update',{'code':link})
+        self.compose('run','--rm','--no-deps','-T','app','--telegram-poll')
+        self.assertTrue(self.a.request('notifications/settings')[1]['connected'])
+        self.a.request('notifications/settings','PUT',dict(enabled=True,timeZone='Europe/Moscow',beforeEnabled=True,
+                       beforeTime='19:00',dueEnabled=True,dueTime='09:00'))
+        task = self.a.request('assignments')[1][0]
+        self.assertEqual(self.a.request(f'assignments/{task["id"]}','PUT',task|{'dueDate':'2026-11-12'})[0],200)
+        self.compose('run','--rm','--no-deps','-T','-e','Testing__UtcNow=2026-11-11T16:00:00Z','app','--notifications-tick')
+        messages = [m for m in self.fake('messages') if m['text'].startswith('Напоминание из')]
+        self.assertEqual(len(messages),1)
+        self.compose('up','-d','--no-deps','--force-recreate','app')
+        self.wait_health()
+        self.wait_ready()
+        self.assertTrue(self.a.request('notifications/settings')[1]['connected'])
+        self.assertEqual(self.a.request('notifications/settings')[1]['lastDelivery']['state'],'Sent')
+        self.assertFalse(self.b.request('notifications/settings')[1]['connected'])
+        self.compose('run','--rm','--no-deps','-T','-e','Testing__UtcNow=2026-11-11T16:00:01Z','app','--notifications-tick')
+        self.assertEqual(len([m for m in self.fake('messages') if m['text'].startswith('Напоминание из')]),1)
 
 
 if __name__ == '__main__':

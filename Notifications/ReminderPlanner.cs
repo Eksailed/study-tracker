@@ -75,4 +75,3 @@ public sealed class ReminderPlanner(IServiceScopeFactory scopes, TimeProvider cl
         await transaction.CommitAsync(token);
     }
 }
-

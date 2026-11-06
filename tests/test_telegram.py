@@ -3,7 +3,6 @@ from pathlib import Path
 import sqlite3
 import time
 import unittest
-from urllib.parse import urlparse, parse_qs
 from fake_telegram import TOKEN
 from telegram_support import TelegramFixture
 
