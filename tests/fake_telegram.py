@@ -15,6 +15,7 @@ class FakeTelegram:
         self.calls = []
         self.webhook = ''
         self.lock = threading.Lock()
+        self.wake = threading.Event()
         owner = self
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *_):
@@ -23,6 +24,13 @@ class FakeTelegram:
             def do_POST(self):
                 method = self.path.rsplit('/',1)[-1]
                 data = json.loads(self.rfile.read(int(self.headers.get('Content-Length','0'))) or b'{}')
+                if self.path == '/test/update':
+                    owner.update(data['code'],chat=data.get('chat',10000000001),kind=data.get('kind','private'))
+                    self.reply(200,{'ok':True})
+                    return
+                if method == 'getUpdates' and data.get('timeout',0) > 0:
+                    owner.wake.wait(timeout=1)
+                    owner.wake.clear()
                 with owner.lock:
                     owner.calls.append(method)
                     if method == 'getMe':
@@ -47,6 +55,15 @@ class FakeTelegram:
                         return
                 self.reply(200,{'ok':True,'result':result})
 
+            def do_GET(self):
+                with owner.lock:
+                    if self.path == '/test/messages':
+                        self.reply(200,list(owner.messages))
+                    elif self.path == '/test/calls':
+                        self.reply(200,list(owner.calls))
+                    else:
+                        self.reply(404,{'ok':False})
+
             def reply(self, code, data):
                 payload = json.dumps(data).encode()
                 self.send_response(code)
@@ -64,6 +81,7 @@ class FakeTelegram:
             number = update_id if update_id is not None else len(self.updates)+1
             self.updates.append({'update_id':number,'message':{'from':{'id':chat,'is_bot':False},
                                  'chat':{'id':chat,'type':kind},'text':'/start '+code}})
+            self.wake.set()
 
     def close(self):
         self.http.shutdown()

@@ -36,13 +36,17 @@ function weekDates() {
 
 async function api(path, method='GET', data) {
   const generation = sessionGeneration;
+  const personalPath = ['assignments','subjects','notifications'].some(prefix=>path.startsWith(prefix));
   const response = await fetch(`/api/${path}`, {
     method, credentials:'same-origin',
     headers:method === 'GET' ? {} : {'Content-Type':'application/json', 'X-CSRF-TOKEN':csrfToken},
     body:data === undefined ? undefined : JSON.stringify(data)
   });
+  if (personalPath && generation !== sessionGeneration) {
+    const error = new Error('Аккаунт изменился. Повторите действие.'); error.status = 409; throw error;
+  }
   const account = response.headers.get('X-Account-Id');
-  if ((path.startsWith('assignments') || path.startsWith('subjects')) && currentUser && account && account !== currentUser.id) {
+  if (personalPath && currentUser && account && account !== currentUser.id) {
     savedDraft = null;
     showLogin('В другой вкладке изменился аккаунт. Войдите, чтобы продолжить.',false);
     const error = new Error('Аккаунт изменился. Войдите снова.'); error.status = 401; throw error;
@@ -54,9 +58,9 @@ async function api(path, method='GET', data) {
     error.status = response.status;
     throw error;
   }
-  if ((path.startsWith('assignments') || path.startsWith('subjects')) && generation !== sessionGeneration)
-    throw new Error('Аккаунт изменился. Повторите действие.');
-  return response.status === 204 ? null : response.json();
+  const result = response.status === 204 ? null : await response.json();
+  if (personalPath && generation !== sessionGeneration) throw new Error('Аккаунт изменился. Повторите действие.');
+  return result;
 }
 
 function notify(message, error=false) {
@@ -356,6 +360,7 @@ function showLogin(message='', preserveDraft=true) {
   }
   const email = currentUser?.email || $('#auth-email').value;
   currentUser = null;
+  document.dispatchEvent(new Event('account-cleared'));
   sessionGeneration++;
   ready = false;
   $$('dialog[open]').forEach(dialog => dialog.close());

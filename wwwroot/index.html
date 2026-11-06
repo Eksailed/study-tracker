@@ -9,6 +9,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/app.css">
   <script src="/app.js" defer></script>
+  <script src="/notifications.js" defer></script>
 </head>
 <body>
   <svg class="svg-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -24,6 +25,7 @@
     <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14z"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10 4 2 18a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3L14 4a2 2 0 0 0-4 0zM12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
   </svg>
   <a class="skip-link" href="#main" hidden>К заданиям</a>
   <section id="auth-screen" class="auth-screen" aria-labelledby="auth-title">
@@ -49,6 +51,7 @@
         <button class="nav-item" data-view="upcoming"><svg class="icon"><use href="#i-calendar"/></svg>На этой неделе</button>
         <button class="nav-item" data-view="done"><svg class="icon"><use href="#i-check"/></svg>Выполненные</button>
         <button class="nav-item" data-view="all"><svg class="icon"><use href="#i-book"/></svg>Все задания</button>
+        <button class="nav-item" id="open-notifications"><svg class="icon"><use href="#i-bell"/></svg>Уведомления</button>
       </nav>
       <div class="subjects-heading"><h2>Предметы</h2><button class="icon-button" id="add-subject" aria-label="Добавить предмет"><svg class="icon"><use href="#i-plus"/></svg></button></div>
       <div id="subjects" class="subjects"></div>
@@ -108,6 +111,21 @@
   </dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><form id="confirm-form"><h2 id="confirm-title">Удалить?</h2><p id="confirm-message"></p><p class="form-error" role="alert"></p><div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Отмена</button><button class="danger-button" type="submit">Удалить</button></div></form></dialog>
   <dialog id="draft-dialog" aria-labelledby="draft-title"><h2 id="draft-title">Вернуться к черновику?</h2><p>Сеанс завершился во время редактирования. Черновик сохранён в памяти этой вкладки.</p><div class="dialog-actions"><button id="discard-draft" class="secondary-button" type="button">Пропустить</button><button id="restore-draft" class="primary-button" type="button">Восстановить</button></div></dialog>
+  <dialog id="notifications-dialog" aria-labelledby="notifications-title">
+    <div class="dialog-heading"><div><h2 id="notifications-title">Уведомления</h2><p class="notification-intro">Меньше пропущенных сроков. Больше спокойствия.</p></div><button class="icon-button close-dialog" type="button" aria-label="Закрыть уведомления"><svg class="icon"><use href="#i-close"/></svg></button></div>
+    <section class="telegram-panel" aria-label="Подключение Telegram"><div class="telegram-panel-heading"><span class="summary-icon blue"><svg class="icon"><use href="#i-bell"/></svg></span><div><h3>Telegram</h3><p id="telegram-status" role="status">Проверяем подключение…</p></div></div>
+      <p id="telegram-problem" class="form-error" role="alert"></p>
+      <div class="telegram-actions"><button id="telegram-connect" class="primary-button" type="button" disabled>Подключить Telegram</button><button id="telegram-test" class="secondary-button" type="button" hidden>Проверочное сообщение</button><button id="telegram-disconnect" class="text-button" type="button" hidden>Удалить привязку</button><button id="notifications-refresh" class="text-button" type="button">Обновить</button></div>
+      <div id="telegram-link-panel" hidden><a id="telegram-open" class="primary-button" target="_blank" rel="noopener noreferrer">Открыть бота в Telegram</a><p id="telegram-link-expiry" class="notification-help"></p><p class="notification-help">Нажми «Начать» в личном чате с ботом, затем вернись сюда. Привязка сама не включает напоминания.</p></div>
+    </section>
+    <form id="notifications-form"><fieldset id="notifications-fields" disabled><legend>Расписание напоминаний</legend>
+      <label class="notification-check"><input name="enabled" type="checkbox"><span>Отправлять напоминания в Telegram</span></label>
+      <p class="notification-help">В сообщениях будут название задания, предмет и дата сдачи. Описание и почта не отправляются.</p>
+      <label for="notification-zone">Часовой пояс</label><select id="notification-zone" name="timeZone"><option value="Europe/Moscow">Москва (UTC+3)</option><option value="Asia/Yekaterinburg">Екатеринбург (UTC+5)</option><option value="Asia/Novosibirsk">Новосибирск (UTC+7)</option></select>
+      <div class="notification-times"><div><label class="notification-check"><input name="beforeEnabled" type="checkbox"><span>Накануне сдачи</span></label><label class="notification-time-label" for="notification-before">Время</label><input id="notification-before" name="beforeTime" type="time" required></div><div><label class="notification-check"><input name="dueEnabled" type="checkbox"><span>В день сдачи</span></label><label class="notification-time-label" for="notification-due">Время</label><input id="notification-due" name="dueTime" type="time" required></div></div>
+    </fieldset><p class="form-error" role="alert"></p><div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Закрыть</button><button class="primary-button" type="submit">Сохранить настройки</button></div></form>
+    <div class="notification-delivery"><strong>Последняя отправка</strong><p id="notification-last" role="status">Отправок пока нет.</p></div><p class="notification-help">Уведомления работают, пока приложение включено. При потере ответа Telegram результат может остаться неизвестным: автоматический повтор такого сообщения не выполняется.</p>
+  </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body>
 </html>

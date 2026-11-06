@@ -26,23 +26,28 @@ public static class TelegramEndpoints
     public static void MapNotifications(this WebApplication app)
     {
         var group = app.MapGroup("/api/notifications").RequireAuthorization();
-        group.MapGet("/settings", async (TrackerDb db, ClaimsPrincipal user, TelegramOptions options, TelegramClient client) =>
+        group.MapGet("/settings", async (TrackerDb db, ClaimsPrincipal user, TelegramOptions options, TelegramClient client, TimeProvider clock) =>
         {
             var owner = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
             var settings = await db.NotificationSettings.AsNoTracking().SingleOrDefaultAsync(s => s.OwnerId == owner)
                 ?? new NotificationSettings { OwnerId = owner };
             var connection = await db.TelegramConnections.AsNoTracking().SingleOrDefaultAsync(c => c.OwnerId == owner);
             var pending = await db.TelegramLinkCodes.AsNoTracking().SingleOrDefaultAsync(c => c.OwnerId == owner);
+            var last = await db.ReminderDeliveries.AsNoTracking().Where(d => d.OwnerId == owner)
+                .OrderByDescending(d => d.ScheduledAt).ThenByDescending(d => d.Id).FirstOrDefaultAsync();
             return Results.Ok(new { settings.Enabled, settings.TimeZone, settings.BeforeEnabled,
                 beforeTime = FormatTime(settings.BeforeMinute), settings.DueEnabled, dueTime = FormatTime(settings.DueMinute),
                 configured = options.Configured, ready = client.Ready, botStatus = client.Status,
                 connected = connection is not null && connection.BotId == client.BotId,
-                connectionProblem = connection?.Problem, codeExpiresAt = pending?.ExpiresAt, zones = Zones });
+                connectionProblem = connection?.Problem, codeExpiresAt = pending?.ExpiresAt, serverNow = clock.GetUtcNow().ToUnixTimeMilliseconds(), zones = Zones,
+                lastDelivery = last is null ? null : new { state = last.State.ToString(), kind = last.Kind.ToString(), last.SentAt, last.Problem } });
         });
         group.MapPut("/settings", async (NotificationInput input, TrackerDb db, ClaimsPrincipal user, TelegramClient client) =>
         {
             if (!Zones.Contains(input.TimeZone) || !ParseTime(input.BeforeTime, out var before) || !ParseTime(input.DueTime, out var due))
                 return Results.BadRequest(new { error = "Выберите доступный часовой пояс и время в формате ЧЧ:ММ." });
+            if (input.Enabled && !input.BeforeEnabled && !input.DueEnabled)
+                return Results.BadRequest(new { error = "Выберите хотя бы один период напоминания." });
             var owner = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
             await using var transaction = await db.Database.BeginTransactionAsync();
             var connection = await db.TelegramConnections.FindAsync(owner);
@@ -76,7 +81,7 @@ public static class TelegramEndpoints
             link.ExpiresAt = now + 600000;
             await db.SaveChangesAsync();
             await transaction.CommitAsync();
-            return Results.Ok(new { url = $"https://t.me/{client.Username}?start={code}", expiresAt = link.ExpiresAt });
+            return Results.Ok(new { url = $"https://t.me/{client.Username}?start={code}", expiresAt = link.ExpiresAt, serverNow = now });
         });
         group.MapDelete("/connection", async (TrackerDb db, ClaimsPrincipal user) =>
         {
@@ -92,6 +97,26 @@ public static class TelegramEndpoints
             await db.SaveChangesAsync();
             await transaction.CommitAsync();
             return Results.NoContent();
+        });
+        group.MapPost("/test", async (TrackerDb db, ClaimsPrincipal user, TelegramClient client, TimeProvider clock) =>
+        {
+            if (!client.Ready) return Results.Json(new { error = client.Status }, statusCode: 503);
+            var owner = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var now = clock.GetUtcNow().ToUnixTimeMilliseconds();
+            await using var transaction = await db.Database.BeginTransactionAsync();
+            var settings = await SettingsAsync(db, owner);
+            var connection = await db.TelegramConnections.FindAsync(owner);
+            if (connection is null || connection.Problem is not null || connection.BotId != client.BotId)
+                return Results.Conflict(new { error = "Сначала подключите работающего бота Telegram." });
+            if (settings.LastTestAt is long last && now < last + 60000)
+                return Results.Json(new { error = "Проверочное сообщение можно запросить раз в минуту." }, statusCode: 429);
+            settings.LastTestAt = now;
+            var delivery = new ReminderDelivery { OwnerId = owner, Kind = ReminderKind.Test, ScheduledAt = now,
+                NextAttemptAt = now, ExpiresAt = now + 900000, BindingVersion = settings.BindingVersion, State = DeliveryState.Pending };
+            db.ReminderDeliveries.Add(delivery);
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return Results.Accepted(value: new { delivery.Id });
         });
     }
 
