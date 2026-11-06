@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.EntityFrameworkCore;
 using StudyTracker;
 
-var builder = WebApplication.CreateBuilder(args);
+var migrate = args.Contains("--migrate");
+var builder = WebApplication.CreateBuilder(args.Where(a => a != "--migrate").ToArray());
 var dataDirectory = builder.Configuration["Tracker:DataDirectory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 Directory.CreateDirectory(dataDirectory);
@@ -17,8 +18,17 @@ builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 app.UseExceptionHandler();
-using (var scope = app.Services.CreateScope())
-    scope.ServiceProvider.GetRequiredService<TrackerDb>().Database.EnsureCreated();
+try
+{
+    await DatabaseSetup.PrepareAsync(app.Services, migrate);
+}
+catch (InvalidOperationException error)
+{
+    Console.Error.WriteLine(error.Message);
+    Environment.ExitCode = 1;
+    return;
+}
+if (migrate) return;
 
 app.Use(async (context, next) =>
 {

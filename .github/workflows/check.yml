@@ -38,6 +38,8 @@ jobs:
           node-version: '24'
       - name: Восстановить зависимости
         run: dotnet restore
+      - name: Восстановить инструменты EF Core
+        run: dotnet tool restore
       - name: Собрать проект
         run: dotnet build --no-restore --nologo
       - name: Проверить синтаксис JavaScript

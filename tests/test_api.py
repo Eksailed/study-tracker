@@ -5,6 +5,9 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import sqlite3
+import hashlib
+from contextlib import closing
 import subprocess
 import tempfile
 import time
@@ -32,6 +35,10 @@ class TrackerApiTests(unittest.TestCase):
         cls.log = tempfile.TemporaryFile()
         env = dict(os.environ, ASPNETCORE_URLS=cls.base, Tracker__DataDirectory=cls.temp.name,
                    DOTNET_ENVIRONMENT='Production')
+        migration = subprocess.run([DOTNET, str(ROOT / 'bin/Debug/net10.0/StudyTracker.dll'), '--migrate'],
+                                   cwd=ROOT, env=env, capture_output=True, timeout=30)
+        if migration.returncode:
+            raise RuntimeError(migration.stderr.decode('utf-8', errors='replace'))
         cls.process = subprocess.Popen([DOTNET, str(ROOT / 'bin/Debug/net10.0/StudyTracker.dll')],
                                        cwd=ROOT, env=env, stdout=cls.log, stderr=cls.log)
         cls.client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -147,6 +154,38 @@ class TrackerApiTests(unittest.TestCase):
             self.assertEqual(response.status, 200)
         with self.client.open(self.base + '/api/subjects') as response:
             self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
+    def run_migrations(self, directory):
+        return subprocess.run([DOTNET, str(ROOT / 'bin/Debug/net10.0/StudyTracker.dll'), '--migrate'],
+                              cwd=ROOT, env=dict(os.environ, Tracker__DataDirectory=directory),
+                              capture_output=True, timeout=30)
+
+    def test_migrations_create_empty_database(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(self.run_migrations(directory).returncode, 0)
+            with closing(sqlite3.connect(Path(directory) / 'tracker.db')) as db, db:
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM Subjects').fetchone()[0], 0)
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM Assignments').fetchone()[0], 0)
+                self.assertGreater(db.execute('SELECT COUNT(*) FROM __EFMigrationsHistory').fetchone()[0], 0)
+
+    def test_migrations_are_repeatable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(self.run_migrations(directory).returncode, 0)
+            with closing(sqlite3.connect(Path(directory) / 'tracker.db')) as db, db:
+                db.execute("INSERT INTO Subjects (Name, NameKey, Color) VALUES ('Test', 'TEST', 'blue')")
+            self.assertEqual(self.run_migrations(directory).returncode, 0)
+            with closing(sqlite3.connect(Path(directory) / 'tracker.db')) as db, db:
+                self.assertEqual(db.execute('SELECT Name FROM Subjects').fetchone()[0], 'Test')
+
+    def test_legacy_database_is_not_modified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'tracker.db'
+            with closing(sqlite3.connect(path)) as db, db:
+                db.execute('CREATE TABLE Subjects (Id INTEGER PRIMARY KEY, Name TEXT)')
+                db.execute("INSERT INTO Subjects (Name) VALUES ('Old')")
+            before = hashlib.sha256(path.read_bytes()).hexdigest()
+            self.assertEqual(self.run_migrations(directory).returncode, 1)
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), before)
 
 
 if __name__ == '__main__':
