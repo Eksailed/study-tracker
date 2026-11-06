@@ -15,6 +15,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AssignmentStatus>()));
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddProblemDetails();
+builder.Services.AddTrackerAccounts(builder.Environment);
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -29,6 +30,9 @@ catch (InvalidOperationException error)
     return;
 }
 if (migrate) return;
+
+app.UseAuthentication();
+app.UseRateLimiter();
 
 app.Use(async (context, next) =>
 {
@@ -59,6 +63,8 @@ app.Use(async (context, next) =>
 });
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseAuthorization();
+app.MapTrackerAccounts();
 
 app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
     Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 namespace StudyTracker;
 
@@ -24,13 +26,17 @@ public class Assignment
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public class TrackerDb(DbContextOptions<TrackerDb> options) : DbContext(options)
+public class ApplicationUser : IdentityUser;
+
+public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Subject> Subjects => Set<Subject>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        base.OnModelCreating(model);
+        model.Entity<ApplicationUser>().HasIndex(u => u.NormalizedEmail).IsUnique();
         model.Entity<Subject>().HasIndex(s => s.NameKey).IsUnique();
         model.Entity<Assignment>().HasOne(a => a.Subject).WithMany()
             .HasForeignKey(a => a.SubjectId).OnDelete(DeleteBehavior.Restrict);

@@ -45,4 +45,4 @@ jobs:
       - name: Проверить синтаксис JavaScript
         run: node --check wwwroot/app.js
       - name: Проверить API и сохранение данных
-        run: python tests/test_api.py
+        run: python -m unittest discover -s tests -v
