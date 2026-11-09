@@ -256,3 +256,5 @@ static string? ValidateAssignment(AssignmentInput input)
         return "Выберите срок между 2000 и 2100 годом.";
     return null;
 }
+
+public partial class Program;

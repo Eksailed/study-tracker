@@ -50,6 +50,8 @@ jobs:
         run: |
           node --check wwwroot/app.js
           node --check wwwroot/notifications.js
+      - name: Тесты на C#
+        run: dotnet test tests/StudyTracker.Tests --nologo
       - name: Проверить API и сохранение данных
         run: python -m unittest discover -s tests -v
   deployment:
