@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using System.Net;
 using StudyTracker.Notifications;
 using StudyTracker.ApiTokens;
+using StudyTracker.Import;
 
 var migrate = args.Contains("--migrate");
 var builder = WebApplication.CreateBuilder(args.Where(a => !CommandLine.Flags.Contains(a)).ToArray());
@@ -44,6 +45,7 @@ builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(opt
 builder.Services.AddTrackerAccounts(builder.Environment);
 builder.AddNotifications();
 builder.Services.AddApiDocs();
+builder.Services.AddImport();
 
 var app = builder.Build();
 app.UseRequestLogging();
@@ -87,6 +89,7 @@ var data = app.MapGroup("/api").RequireAuthorization();
 data.MapSubjects();
 data.MapAssignments();
 data.MapTokens();
+data.MapImport();
 
 var v1 = app.MapGroup(ApiTokenAuth.V1).RequireAuthorization(ApiTokenAuth.ScopePolicy).RequireRateLimiting(ApiTokenAuth.LimiterPolicy);
 v1.MapSubjects(ApiTokenAuth.V1);

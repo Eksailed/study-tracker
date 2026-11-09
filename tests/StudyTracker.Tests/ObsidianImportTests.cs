@@ -1,7 +1,6 @@
 using System.Text;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using StudyTracker.Import;
 using StudyTracker.Tests.Support;
 
@@ -301,7 +300,7 @@ public class ObsidianImportTests
         var path = Path.Combine(factory.DataDirectory, "tracker.db");
         var connectionString = new SqliteConnectionStringBuilder { DataSource = path, ForeignKeys = true, Pooling = false }.ToString();
         var options = new DbContextOptionsBuilder<TrackerDb>().UseSqlite(connectionString)
-            .AddInterceptors(new InsertBeforeSave(connectionString, owner)).Options;
+            .AddInterceptors(new ConflictingInsert()).Options;
         await using var db = new TrackerDb(options);
 
         await Assert.ThrowsAsync<DbUpdateException>(() =>
@@ -311,23 +310,5 @@ public class ObsidianImportTests
         Assert.Equal(1, Db(factory, d => d.Subjects.Count()));
         var only = Db(factory, d => d.Assignments.AsNoTracking().Single());
         Assert.Equal("Вставлено перехватчиком", only.Title);
-    }
-
-    private sealed class InsertBeforeSave(string connectionString, string owner) : SaveChangesInterceptor
-    {
-        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
-            InterceptionResult<int> result, CancellationToken cancellationToken = default)
-        {
-            await using var connection = new SqliteConnection(connectionString);
-            await connection.OpenAsync(cancellationToken);
-            await using var command = connection.CreateCommand();
-            command.CommandText = $"""
-                INSERT INTO Assignments (Title, Description, SubjectId, DueDate, Status, CreatedAt, OwnerId, ImportKey)
-                SELECT 'Вставлено перехватчиком', '', Id, '2026-11-20', 0, '2026-11-09 10:00:00', '{owner}', 's-2'
-                FROM Subjects WHERE NameKey = 'ИКТ';
-                """;
-            await command.ExecuteNonQueryAsync(cancellationToken);
-            return result;
-        }
     }
 }

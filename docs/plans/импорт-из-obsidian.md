@@ -1,6 +1,6 @@
 # План: импорт заданий из Obsidian
 
-Статус: в работе, версия 0.6, план от 9 ноября 2026 года. Сделаны задачи 1–3 из 6 (разбор заметки, колонка `ImportKey`, сервис импорта). Работа идёт сразу в `main`, после каждой задачи — коммит и push.
+Статус: в работе, версия 0.6, план от 9 ноября 2026 года. Сделаны задачи 1–4 из 6 (разбор заметки, колонка `ImportKey`, сервис импорта, адреса). Работа идёт сразу в `main`, после каждой задачи — коммит и push.
 
 Связано: [спецификация](../specs/импорт-из-obsidian.md), [README](../../README.md), [план версии 0.5](эксплуатация-и-api.md), [модели](../../Models.cs), [CI](../../.github/workflows/check.yml).
 
@@ -190,7 +190,7 @@ public static class ImportEndpoints
 
 В `Program.cs`: `builder.Services.AddImport();` после `AddApiDocs()`, `data.MapImport();` после `data.MapTokens();`. Лимитер: фиксированное окно 10 запросов в минуту, `QueueLimit = 0`, раздел — `ClaimTypes.NameIdentifier`, без пользователя — `GetNoLimiter`. Ответы: `ImportException` → `400 {"error": сообщение}`; `DbUpdateException` при добавлении → `409 {"error": "Импорт уже выполняется. Повтори через минуту."}`; успех → `200` с `ImportReport` (поля в camelCase, статус строкой — это уже настроено в `ConfigureHttpJsonOptions`). Адреса остаются внутри группы `/api` с `RequireAuthorization()`.
 
-- [ ] **Шаг 1. Тесты (красные)** в `ImportApiTests`, клиент `ApiClient` (после `SignIn`):
+- [x] **Шаг 1. Тесты (красные)** в `ImportApiTests`, клиент `ApiClient` (после `SignIn`):
   - `PreviewReturnsReport`: `Post("import/obsidian/preview", new { files = …, defaultDue = (string?)null })` → `200`, `newCount`, `existingCount`, `notHomework`, `truncated`, `newSubjects`, `skipped[0].reason`, `items[0].status == "Done"`; в базе пусто.
   - `ApplyThenRepeat`: первый вызов — `newCount=N`, `GET assignments` длиной N; второй — `newCount=0`, `existingCount=N`.
   - `RequiresLogin`: без входа оба адреса → `401`.
@@ -200,10 +200,10 @@ public static class ImportEndpoints
   - `RateLimit`: 10 предпросмотров подряд → `200`, 11-й → `429` с `Retry-After`; второй аккаунт в то же время → `200`.
   - `ApplyConflictGives409`: перехватчик из `ApplyIsAtomic` через `TrackerFactory(services: …)` → `409`, в теле «Импорт уже выполняется».
   - `OtherAccountSeesNothing`: после импорта в аккаунте A у аккаунта B `GET assignments` пуст.
-- [ ] **Шаг 2.** Запуск `--filter ImportApiTests` → красные (адресов нет → `404`).
-- [ ] **Шаг 3.** Реализовать `ImportEndpoints`, подключить в `Program.cs`.
-- [ ] **Шаг 4.** Запуск → зелёные. «Сломать и вернуть»: убрать `RequireRateLimiting` (`RateLimit` красный); заменить `NameIdentifier` постоянным ключом (второй аккаунт получает `429`); убрать обработку `DbUpdateException` (`500` вместо `409`); вернуть.
-- [ ] **Шаг 5.** Полный `dotnet test`, коммит `Адреса импорта и лимит запросов`, push, журнал.
+- [x] **Шаг 2.** Запуск `--filter ImportApiTests` → красные (адресов нет → `404`).
+- [x] **Шаг 3.** Реализовать `ImportEndpoints`, подключить в `Program.cs`.
+- [x] **Шаг 4.** Запуск → зелёные. «Сломать и вернуть»: убрать `RequireRateLimiting` (`RateLimit` красный); заменить `NameIdentifier` постоянным ключом (второй аккаунт получает `429`); убрать обработку `DbUpdateException` (`500` вместо `409`); вернуть.
+- [x] **Шаг 5.** Полный `dotnet test`, коммит `Адреса импорта и лимит запросов`, push, журнал.
 
 ---
 
