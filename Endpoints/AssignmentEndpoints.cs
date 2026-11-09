@@ -8,8 +8,10 @@ public static class AssignmentEndpoints
     public static void MapAssignments(this RouteGroupBuilder group, string prefix = "/api")
     {
         group.MapGet("/assignments", async (TrackerDb db, ClaimsPrincipal user) =>
-            Results.Ok(await db.Assignments.AsNoTracking().Where(a => a.OwnerId == user.FindFirstValue(ClaimTypes.NameIdentifier))
-                .OrderBy(a => a.DueDate).ThenBy(a => a.Id).ToListAsync()));
+            Results.Ok(await db.Assignments.AsNoTracking().Include(a => a.Subtasks.OrderBy(s => s.Position))
+                .Where(a => a.OwnerId == user.FindFirstValue(ClaimTypes.NameIdentifier))
+                .OrderBy(a => a.DueDate).ThenBy(a => a.Id).ToListAsync()))
+            .Produces<List<Assignment>>();
 
         group.MapPost("/assignments", async (AssignmentInput input, TrackerDb db, ClaimsPrincipal user) =>
         {
@@ -18,16 +20,18 @@ public static class AssignmentEndpoints
             var error = AssignmentValidator.Validate(input);
             if (error is not null) return Results.BadRequest(new { error });
             var assignment = new Assignment { Title = input.Title!.Trim(), Description = input.Description?.Trim() ?? "",
-                SubjectId = input.SubjectId, OwnerId = owner, DueDate = input.DueDate, Status = input.Status };
+                SubjectId = input.SubjectId, OwnerId = owner, DueDate = input.DueDate, Status = input.Status,
+                Priority = input.Priority ?? AssignmentPriority.Normal };
             db.Assignments.Add(assignment);
             await db.SaveChangesAsync();
             return Results.Created($"{prefix}/assignments/{assignment.Id}", assignment);
-        });
+        }).Produces<Assignment>(StatusCodes.Status201Created);
 
         group.MapPut("/assignments/{id:int}", async (int id, AssignmentInput input, TrackerDb db, ClaimsPrincipal user) =>
         {
             var owner = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
-            var assignment = await db.Assignments.SingleOrDefaultAsync(a => a.Id == id && a.OwnerId == owner);
+            var assignment = await db.Assignments.Include(a => a.Subtasks.OrderBy(s => s.Position))
+                .SingleOrDefaultAsync(a => a.Id == id && a.OwnerId == owner);
             if (assignment is null) return Results.NotFound();
             if (!await db.Subjects.AnyAsync(s => s.Id == input.SubjectId && s.OwnerId == owner)) return Results.NotFound();
             var error = AssignmentValidator.Validate(input);
@@ -37,9 +41,10 @@ public static class AssignmentEndpoints
             assignment.SubjectId = input.SubjectId;
             assignment.DueDate = input.DueDate;
             assignment.Status = input.Status;
+            if (input.Priority is { } priority) assignment.Priority = priority;
             await db.SaveChangesAsync();
             return Results.Ok(assignment);
-        });
+        }).Produces<Assignment>();
 
         group.MapDelete("/assignments/{id:int}", async (int id, TrackerDb db, ClaimsPrincipal user) =>
         {

@@ -8,6 +8,7 @@ public static class AssignmentValidator
             return "Введите название задания от 1 до 140 символов.";
         if (input.Description?.Length > 2000) return "Описание должно быть не длиннее 2000 символов.";
         if (!Enum.IsDefined(input.Status)) return "Выберите допустимый статус.";
+        if (input.Priority is { } priority && !Enum.IsDefined(priority)) return "Выберите важность из списка.";
         if (input.DueDate < new DateOnly(2000, 1, 1) || input.DueDate > new DateOnly(2100, 12, 31))
             return "Выберите срок между 2000 и 2100 годом.";
         return null;

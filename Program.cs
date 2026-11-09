@@ -39,7 +39,10 @@ builder.Services.AddDbContext<TrackerDb>(options => options.UseSqlite(
     new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
     { DataSource = Path.Combine(dataDirectory, "tracker.db"), ForeignKeys = true }.ToString()));
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AssignmentStatus>()));
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AssignmentStatus>());
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AssignmentPriority>());
+});
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddProblemDetails();
 builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
@@ -91,6 +94,7 @@ app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
 var data = app.MapGroup("/api").RequireAuthorization();
 data.MapSubjects();
 data.MapAssignments();
+data.MapSubtasks();
 data.MapTokens();
 data.MapImport();
 data.MapCalendar();

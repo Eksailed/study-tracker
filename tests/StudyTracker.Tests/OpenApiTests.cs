@@ -71,6 +71,22 @@ public class OpenApiTests
     }
 
     [Fact]
+    public async Task OpenApiDescribesPriorityAndSubtasks()
+    {
+        await using var factory = new TrackerFactory();
+        var document = await Document(factory.NewClient());
+
+        var assignment = document.GetProperty("components").GetProperty("schemas").GetProperty("Assignment").GetProperty("properties");
+        Assert.True(assignment.TryGetProperty("priority", out _), "В схеме задания нет priority");
+        Assert.True(assignment.TryGetProperty("subtasks", out var subtasks), "В схеме задания нет subtasks");
+        Assert.Equal("array", subtasks.GetProperty("type").GetString());
+        var text = document.GetRawText();
+        foreach (var value in new[] { "Normal", "Important", "Urgent" }) Assert.Contains($"\"{value}\"", text);
+        Assert.DoesNotContain("assignmentId", text);
+        Assert.DoesNotContain("/subtasks", text);
+    }
+
+    [Fact]
     public async Task DocsPageIsPublicAndStrict()
     {
         await using var factory = new TrackerFactory();
