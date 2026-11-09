@@ -20,6 +20,9 @@ public sealed class ApiClient(HttpClient http)
     /// <summary>Заголовки, которые уходят с каждым запросом (например, <c>Cookie</c> другого сеанса).</summary>
     public HttpRequestHeaders DefaultHeaders => http.DefaultRequestHeaders;
 
+    /// <summary>Все запросы клиента уходят с <c>Authorization: Bearer …</c>.</summary>
+    public void UseBearer(string token) => http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
     public async Task<ApiResponse> Send(HttpMethod method, string path, object? body = null, bool csrf = true)
     {
         if (csrf && Token is null && path != "token") await RefreshToken();

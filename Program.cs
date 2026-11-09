@@ -86,6 +86,10 @@ data.MapSubjects();
 data.MapAssignments();
 data.MapTokens();
 
+var v1 = app.MapGroup(ApiTokenAuth.V1).RequireAuthorization(ApiTokenAuth.ScopePolicy).RequireRateLimiting(ApiTokenAuth.LimiterPolicy);
+v1.MapSubjects(ApiTokenAuth.V1);
+v1.MapAssignments(ApiTokenAuth.V1);
+
 await app.Services.GetRequiredService<ReminderSender>().RecoverAsync(CancellationToken.None);
 app.Run();
 

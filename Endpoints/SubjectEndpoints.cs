@@ -7,7 +7,7 @@ public static class SubjectEndpoints
 {
     public static readonly string[] Colors = ["blue", "teal", "purple", "orange", "pink", "slate"];
 
-    public static void MapSubjects(this RouteGroupBuilder group)
+    public static void MapSubjects(this RouteGroupBuilder group, string prefix = "/api")
     {
         group.MapGet("/subjects", async (TrackerDb db, ClaimsPrincipal user) =>
             Results.Ok(await db.Subjects.Where(s => s.OwnerId == user.FindFirstValue(ClaimTypes.NameIdentifier))
@@ -23,7 +23,7 @@ public static class SubjectEndpoints
             db.Subjects.Add(subject);
             try { await db.SaveChangesAsync(); }
             catch (DbUpdateException) { return Results.Conflict(new { error = "Такой предмет уже есть." }); }
-            return Results.Created($"/api/subjects/{subject.Id}", new { subject.Id, subject.Name, subject.Color });
+            return Results.Created($"{prefix}/subjects/{subject.Id}", new { subject.Id, subject.Name, subject.Color });
         });
 
         group.MapDelete("/subjects/{id:int}", async (int id, TrackerDb db, ClaimsPrincipal user) =>

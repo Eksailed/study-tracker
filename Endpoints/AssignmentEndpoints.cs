@@ -5,7 +5,7 @@ namespace StudyTracker;
 
 public static class AssignmentEndpoints
 {
-    public static void MapAssignments(this RouteGroupBuilder group)
+    public static void MapAssignments(this RouteGroupBuilder group, string prefix = "/api")
     {
         group.MapGet("/assignments", async (TrackerDb db, ClaimsPrincipal user) =>
             Results.Ok(await db.Assignments.AsNoTracking().Where(a => a.OwnerId == user.FindFirstValue(ClaimTypes.NameIdentifier))
@@ -21,7 +21,7 @@ public static class AssignmentEndpoints
                 SubjectId = input.SubjectId, OwnerId = owner, DueDate = input.DueDate, Status = input.Status };
             db.Assignments.Add(assignment);
             await db.SaveChangesAsync();
-            return Results.Created($"/api/assignments/{assignment.Id}", assignment);
+            return Results.Created($"{prefix}/assignments/{assignment.Id}", assignment);
         });
 
         group.MapPut("/assignments/{id:int}", async (int id, AssignmentInput input, TrackerDb db, ClaimsPrincipal user) =>

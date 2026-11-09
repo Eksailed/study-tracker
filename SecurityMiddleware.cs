@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
+using StudyTracker.ApiTokens;
 
 namespace StudyTracker;
 
@@ -23,8 +24,9 @@ public static class SecurityMiddleware
         if (context.Request.Path.StartsWithSegments("/api"))
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (HttpMethods.IsPost(context.Request.Method) || HttpMethods.IsPut(context.Request.Method)
-                || HttpMethods.IsDelete(context.Request.Method))
+            // CSRF угрожает только запросам с cookie: токен браузер сам не подставляет.
+            if (!ApiTokenAuth.IsToken(context.User) && (HttpMethods.IsPost(context.Request.Method)
+                || HttpMethods.IsPut(context.Request.Method) || HttpMethods.IsDelete(context.Request.Method)))
             {
                 try
                 {

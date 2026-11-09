@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using StudyTracker.ApiTokens;
 
 namespace StudyTracker;
 
@@ -35,12 +37,20 @@ public static class AuthEndpoints
             options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
             options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
         });
-        services.AddAuthorization();
+        services.AddApiTokenAuth();
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = 429;
             options.OnRejected = async (context, token) =>
-                await context.HttpContext.Response.WriteAsJsonAsync(new { error = "Слишком много попыток. Повторите через минуту." }, token);
+            {
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        Math.Ceiling(retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
+                var message = context.HttpContext.User.FindFirst(ApiTokenAuth.TokenIdClaim) is null
+                    ? "Слишком много попыток. Повторите через минуту."
+                    : "Слишком много запросов с этим токеном. Повторите через минуту.";
+                await context.HttpContext.Response.WriteAsJsonAsync(new { error = message }, token);
+            };
             options.AddPolicy("accounts", context => RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
                 { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));

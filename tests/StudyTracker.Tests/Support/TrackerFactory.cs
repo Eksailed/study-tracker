@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace StudyTracker.Tests.Support;
 
@@ -40,6 +41,13 @@ public sealed class TrackerFactory : WebApplicationFactory<Program>
 
     /// <summary>Хост на готовой папке без миграций (например, после <c>--restore</c>). Папку удаляет вызывающий.</summary>
     public static TrackerFactory OnDirectory(string directory) => new(null, "Development", null, directory, owns: false);
+
+    /// <summary>Подменяет <see cref="TimeProvider"/> хоста на поддельные часы теста.</summary>
+    public static Action<IServiceCollection> WithTime(TimeProvider time) => services =>
+    {
+        services.RemoveAll<TimeProvider>();
+        services.AddSingleton(time);
+    };
 
     private static string ConnectionString(string directory) =>
         new SqliteConnectionStringBuilder { DataSource = Path.Combine(directory, "tracker.db"), ForeignKeys = true }.ToString();

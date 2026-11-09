@@ -3,7 +3,6 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using StudyTracker.ApiTokens;
 using StudyTracker.Tests.Support;
@@ -13,12 +12,6 @@ namespace StudyTracker.Tests;
 public class ApiTokenTests
 {
     private static readonly DateTimeOffset Moment = DateTimeOffset.Parse("2026-11-10T08:09:10Z");
-
-    private static Action<IServiceCollection> UseTime(FakeTimeProvider time) => services =>
-    {
-        services.RemoveAll<TimeProvider>();
-        services.AddSingleton<TimeProvider>(time);
-    };
 
     private static Task<ApiResponse> Issue(ApiClient client, string name = "Скрипт", string[]? scopes = null, int? days = null)
     {
@@ -90,7 +83,7 @@ public class ApiTokenTests
     public async Task RevokeIsIdempotent()
     {
         var time = new FakeTimeProvider(Moment);
-        await using var factory = new TrackerFactory(services: UseTime(time));
+        await using var factory = new TrackerFactory(services: TrackerFactory.WithTime(time));
         var client = factory.NewClient();
         await client.SignIn();
         var id = (await Issue(client)).Body.GetProperty("id").GetInt32();
@@ -138,7 +131,7 @@ public class ApiTokenTests
     public async Task DefaultDaysIs90()
     {
         var time = new FakeTimeProvider(Moment);
-        await using var factory = new TrackerFactory(services: UseTime(time));
+        await using var factory = new TrackerFactory(services: TrackerFactory.WithTime(time));
         var client = factory.NewClient();
         await client.SignIn();
 
@@ -154,7 +147,7 @@ public class ApiTokenTests
     public async Task LimitOfTenActiveTokens()
     {
         var time = new FakeTimeProvider(Moment);
-        await using var factory = new TrackerFactory(services: UseTime(time));
+        await using var factory = new TrackerFactory(services: TrackerFactory.WithTime(time));
         var client = factory.NewClient();
         await client.SignIn();
         var ids = new List<int>();
