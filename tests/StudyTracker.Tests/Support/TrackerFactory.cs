@@ -14,6 +14,7 @@ public sealed class TrackerFactory : WebApplicationFactory<Program>
     private readonly Action<IServiceCollection>? services;
     private readonly bool ownsDirectory;
     private bool cleaned;
+    private bool restarting;
 
     public string DataDirectory { get; }
 
@@ -43,7 +44,13 @@ public sealed class TrackerFactory : WebApplicationFactory<Program>
     public ApiClient NewClient() => new(CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }));
 
     /// <summary>Новый хост на той же папке и с теми же настройками. Папку удалит только исходная фабрика.</summary>
-    public TrackerFactory Restart() => new(settings, environment, services, DataDirectory, owns: false);
+    public TrackerFactory Restart()
+    {
+        restarting = true;
+        try { base.Dispose(true); }
+        finally { restarting = false; }
+        return new(settings, environment, services, DataDirectory, owns: false);
+    }
 
     public T Scope<T>(Func<IServiceProvider, T> use)
     {
@@ -73,7 +80,7 @@ public sealed class TrackerFactory : WebApplicationFactory<Program>
 
     private void Cleanup()
     {
-        if (cleaned) return;
+        if (cleaned || restarting) return;
         cleaned = true;
         SqliteConnection.ClearAllPools();
         if (!ownsDirectory) return;

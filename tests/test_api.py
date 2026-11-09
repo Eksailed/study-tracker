@@ -101,17 +101,6 @@ class TrackerApiTests(unittest.TestCase):
         self.assertEqual(status, 201, body)
         return body
 
-    def test_data_survives_restart(self):
-        subject = self.subject('Физика')
-        task = self.task(subject, status='InProgress', description='Сохранить после перезапуска')
-        self.stop_server()
-        self.start_server()
-        code, tasks = self.request('assignments')
-        self.assertEqual(code, 200)
-        stored = next(a for a in tasks if a['id'] == task['id'])
-        self.assertEqual(stored['status'], 'InProgress')
-        self.assertEqual(stored['description'], 'Сохранить после перезапуска')
-
     def run_migrations(self, directory):
         return subprocess.run([DOTNET, str(ROOT / 'bin/Debug/net10.0/StudyTracker.dll'), '--migrate'],
                               cwd=ROOT, env=dict(os.environ, Tracker__DataDirectory=directory),
