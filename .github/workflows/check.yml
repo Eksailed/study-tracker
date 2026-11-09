@@ -32,10 +32,6 @@ jobs:
         uses: actions/setup-dotnet@v6.1.0
         with:
           dotnet-version: '10.0.x'
-      - name: Установить Python
-        uses: actions/setup-python@v7.1.0
-        with:
-          python-version: '3.11'
       - name: Установить Node.js
         uses: actions/setup-node@v7.1.0
         with:
@@ -52,8 +48,6 @@ jobs:
           node --check wwwroot/notifications.js
       - name: Тесты на C#
         run: dotnet test tests/StudyTracker.Tests --nologo
-      - name: Проверить API и сохранение данных
-        run: python -m unittest discover -s tests -v
   deployment:
     name: HTTPS, перезапуск и резервная копия
     runs-on: ubuntu-latest

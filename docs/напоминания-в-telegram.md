@@ -72,7 +72,7 @@ Telegram и SQLite не участвуют в общей транзакции. �
 dotnet build --nologo
 node --check wwwroot/app.js
 node --check wwwroot/notifications.js
-python -m unittest discover -s tests -v
+dotnet test tests/StudyTracker.Tests --nologo
 docker build -t study-tracker:local .
 python tests/test_deployment.py
 ```
