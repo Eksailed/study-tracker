@@ -15,7 +15,7 @@ public sealed class ApiClient(HttpClient http)
 {
     public const string DefaultPassword = "a-long-test-password";
 
-    public string? Token { get; private set; }
+    public string? Token { get; set; }
 
     public async Task<ApiResponse> Send(HttpMethod method, string path, object? body = null, bool csrf = true)
     {

@@ -6,13 +6,14 @@ namespace StudyTracker;
 
 public static class AccountCommands
 {
-    public static async Task CreateAsync(IServiceProvider services, string email)
+    public static async Task CreateAsync(IServiceProvider services, string email, Func<string?>? readPassword = null)
     {
         email = email.Trim();
         if (email.Length > 254 || !new EmailAddressAttribute().IsValid(email))
             throw new InvalidOperationException("Укажите корректную почту.");
         string password;
-        if (Console.IsInputRedirected) password = Console.ReadLine() ?? "";
+        if (readPassword is not null) password = readPassword() ?? "";
+        else if (Console.IsInputRedirected) password = Console.ReadLine() ?? "";
         else
         {
             Console.Write("Пароль (от 12 до 128 символов, ввод скрыт): ");
