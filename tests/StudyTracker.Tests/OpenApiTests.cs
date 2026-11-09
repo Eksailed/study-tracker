@@ -119,6 +119,17 @@ public class OpenApiTests
     }
 
     [Fact]
+    public async Task DocsPageExplainsGroupsAreNotInTokens()
+    {
+        await using var factory = new TrackerFactory();
+        var page = await factory.NewClient().Page("/api/docs");
+
+        Assert.Contains("docs-groups-title", page.Text);
+        Assert.Contains("groupId", page.Text);
+        Assert.Contains("/api/assignments/{id}/progress", page.Text);
+    }
+
+    [Fact]
     public async Task DocsScriptIsServed()
     {
         await using var factory = new TrackerFactory();

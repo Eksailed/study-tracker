@@ -21,6 +21,11 @@
       <p>Токен выпускается в разделе «Доступ к API» в приложении и показывается один раз. Передавайте его в заголовке <code>Authorization</code>. Токен работает только на адресах <code>/api/v1</code>.</p>
       <pre class="docs-code">curl -H "Authorization: Bearer zt_…" <span class="docs-origin"></span>/api/v1/subjects</pre>
     </section>
+    <section class="docs-block" aria-labelledby="docs-groups-title">
+      <h2 id="docs-groups-title">Группы</h2>
+      <p>Токен видит и меняет только личные предметы и задания. Группы, задания группы и личные отметки по ним доступны только в приложении: адрес <code>/api/assignments/{id}/progress</code> с токеном не работает.</p>
+      <p>Если передать <code>groupId</code> в запросе с токеном, ответ будет <code>400</code>. В ответах токену поле <code>groupId</code> всегда <code>null</code>.</p>
+    </section>
     <p id="docs-error" class="docs-error" role="alert" hidden></p>
   </main>
 </body>
