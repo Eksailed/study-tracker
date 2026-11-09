@@ -46,6 +46,12 @@ builder.AddNotifications();
 var app = builder.Build();
 app.UseRequestLogging();
 app.UseExceptionHandler();
+if (args.Contains("--restore"))
+{
+    // Папка данных должна остаться пустой: подготовка базы создала бы tracker.db, и восстановление отказало бы.
+    Environment.ExitCode = await BackupCommands.RunAsync(args, app.Services, Console.Out, Console.Error);
+    return;
+}
 try
 {
     await DatabaseSetup.PrepareAsync(app.Services, migrate);

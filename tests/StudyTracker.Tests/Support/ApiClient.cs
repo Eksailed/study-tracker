@@ -17,6 +17,9 @@ public sealed class ApiClient(HttpClient http)
 
     public string? Token { get; set; }
 
+    /// <summary>Заголовки, которые уходят с каждым запросом (например, <c>Cookie</c> другого сеанса).</summary>
+    public HttpRequestHeaders DefaultHeaders => http.DefaultRequestHeaders;
+
     public async Task<ApiResponse> Send(HttpMethod method, string path, object? body = null, bool csrf = true)
     {
         if (csrf && Token is null && path != "token") await RefreshToken();

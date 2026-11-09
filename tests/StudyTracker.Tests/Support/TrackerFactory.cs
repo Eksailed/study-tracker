@@ -38,6 +38,9 @@ public sealed class TrackerFactory : WebApplicationFactory<Program>
         ownsDirectory = owns;
     }
 
+    /// <summary>Хост на готовой папке без миграций (например, после <c>--restore</c>). Папку удаляет вызывающий.</summary>
+    public static TrackerFactory OnDirectory(string directory) => new(null, "Development", null, directory, owns: false);
+
     private static string ConnectionString(string directory) =>
         new SqliteConnectionStringBuilder { DataSource = Path.Combine(directory, "tracker.db"), ForeignKeys = true }.ToString();
 

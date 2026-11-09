@@ -47,6 +47,38 @@ public static class BackupCommands
         }
     }
 
+    /// <summary>
+    /// Кладёт копию базы и её папку ключей (<c>X-keys</c> рядом с <c>X.db</c>) в пустую папку данных.
+    /// Работающую базу не затирает: если <c>tracker.db</c> или ключи уже есть — отказ, ничего не меняется.
+    /// </summary>
+    public static Task RestoreAsync(string backupDb, string dataDirectory, string keyDirectory)
+    {
+        var keysSource = backupDb.EndsWith(".db", StringComparison.OrdinalIgnoreCase)
+            ? backupDb[..^".db".Length] + "-keys" : backupDb + "-keys";
+        var database = Path.Combine(dataDirectory, "tracker.db");
+        if (!File.Exists(backupDb)) throw new InvalidOperationException($"Копия не найдена: {backupDb}");
+        if (!Directory.Exists(keysSource))
+            throw new InvalidOperationException($"Рядом с копией нет папки ключей {Path.GetFileName(keysSource)}. " +
+                "Без неё не восстановить сеансы.");
+        if (File.Exists(database))
+            throw new InvalidOperationException("В папке данных уже есть tracker.db. Восстановление не затирает рабочую базу: " +
+                "перенесите её вручную или укажите пустую папку через Tracker__DataDirectory.");
+        if (Directory.Exists(keyDirectory) && Directory.EnumerateFileSystemEntries(keyDirectory).Any())
+            throw new InvalidOperationException("В папке ключей уже есть файлы. Укажите пустую папку.");
+        Directory.CreateDirectory(dataDirectory);
+        try
+        {
+            File.Copy(backupDb, database);
+            CopyDirectory(keysSource, keyDirectory);
+        }
+        catch
+        {
+            if (File.Exists(database)) File.Delete(database);
+            throw;
+        }
+        return Task.CompletedTask;
+    }
+
     private static async Task<string> IntegrityCheck(string database)
     {
         await using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -65,11 +97,20 @@ public static class BackupCommands
             CopyDirectory(directory, Path.Combine(to, Path.GetFileName(directory)));
     }
 
-    /// <summary>Выполняет <c>--backup</c> и печатает результат; возвращает код выхода (0 или 1).</summary>
+    /// <summary>Выполняет <c>--backup</c> или <c>--restore</c> и печатает результат; возвращает код выхода (0 или 1).</summary>
     public static async Task<int> RunAsync(string[] args, IServiceProvider services, TextWriter output, TextWriter error)
     {
         try
         {
+            if (args.Contains("--restore"))
+            {
+                var file = Option(args, "--restore", "Укажите файл копии после --restore.");
+                var paths = services.GetRequiredService<TrackerPaths>();
+                await RestoreAsync(file, paths.DataDirectory, paths.KeyDirectory);
+                output.WriteLine($"Восстановлено в {paths.DataDirectory}. Запустите приложение; " +
+                    "если копия сделана старой версией, сначала выполните --migrate.");
+                return 0;
+            }
             var folder = Option(args, "--backup", "Укажите папку после --backup.");
             var database = await BackupAsync(services, folder, services.GetRequiredService<TimeProvider>());
             output.WriteLine("Копия базы: " + database);

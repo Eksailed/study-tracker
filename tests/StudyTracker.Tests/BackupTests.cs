@@ -9,11 +9,19 @@ public class BackupTests : IDisposable
     private static readonly DateTimeOffset Moment = DateTimeOffset.Parse("2026-11-10T08:09:10Z");
     private readonly string folder = Directory.CreateTempSubdirectory("zachet-backup-").FullName;
 
+    private readonly string restored = Directory.CreateTempSubdirectory("zachet-restore-").FullName;
+
     public void Dispose()
     {
         SqliteConnection.ClearAllPools();
         Directory.Delete(folder, recursive: true);
+        Directory.Delete(restored, recursive: true);
     }
+
+    private string RestoredKeys => Path.Combine(restored, "keys");
+
+    private ServiceProvider RestoreServices() =>
+        new ServiceCollection().AddSingleton(new TrackerPaths(restored, RestoredKeys)).BuildServiceProvider();
 
     private static async Task<string> Seed(TrackerFactory factory)
     {
@@ -135,6 +143,155 @@ public class BackupTests : IDisposable
         var copy = Assert.Single(Directory.GetFiles(folder, "tracker-*.db"));
         Assert.Contains(copy, output.ToString());
         Assert.Contains("-keys", output.ToString());
+    }
+
+    [Fact]
+    public async Task RestoreBringsBackAccountAndTask()
+    {
+        string copy;
+        await using (var source = new TrackerFactory())
+        {
+            await Seed(source);
+            copy = await BackupCommands.BackupAsync(source.Services, folder, new FakeTimeProvider(Moment));
+        }
+
+        await BackupCommands.RestoreAsync(copy, restored, RestoredKeys);
+
+        await using var factory = TrackerFactory.OnDirectory(restored);
+        var client = factory.NewClient();
+        Assert.Equal(200, (await client.Login("backup@example.test")).Status);
+        var tasks = await client.Get("assignments");
+        Assert.Equal(1, tasks.Body.GetArrayLength());
+        Assert.Equal("Лабораторная № 2", tasks.Body[0].GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public async Task RestoreKeepsSessions()
+    {
+        string copy, cookie;
+        await using (var source = new TrackerFactory())
+        {
+            var client = source.NewClient();
+            await client.Register("session@example.test");
+            var login = await client.Login("session@example.test");
+            cookie = login.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("Zachet.Account=")).Split(';')[0];
+            Assert.Equal(200, (await client.Get("auth/me")).Status);
+            copy = await BackupCommands.BackupAsync(source.Services, folder, new FakeTimeProvider(Moment));
+        }
+
+        await BackupCommands.RestoreAsync(copy, restored, RestoredKeys);
+
+        await using var factory = TrackerFactory.OnDirectory(restored);
+        var other = factory.NewClient();
+        other.DefaultHeaders.Add("Cookie", cookie);
+        var me = await other.Get("auth/me");
+        Assert.Equal(200, me.Status);
+        Assert.Equal("session@example.test", me.Body.GetProperty("email").GetString());
+    }
+
+    [Fact]
+    public async Task RestoreRefusesNonEmptyDirectory()
+    {
+        await using var factory = new TrackerFactory();
+        await Seed(factory);
+        var copy = await BackupCommands.BackupAsync(factory.Services, folder, new FakeTimeProvider(Moment));
+        var live = new FileInfo(Path.Combine(factory.DataDirectory, "tracker.db"));
+        var size = live.Length;
+        var written = live.LastWriteTimeUtc;
+
+        // Папка ключей чистая: отказ должен случиться именно из-за tracker.db, а не из-за ключей.
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            BackupCommands.RestoreAsync(copy, factory.DataDirectory, RestoredKeys));
+
+        Assert.Contains("tracker.db", error.Message);
+        live.Refresh();
+        Assert.Equal(size, live.Length);
+        Assert.Equal(written, live.LastWriteTimeUtc);
+        Assert.False(Directory.Exists(RestoredKeys) && Directory.EnumerateFileSystemEntries(RestoredKeys).Any());
+    }
+
+    [Fact]
+    public async Task RestoreRefusesNonEmptyKeyDirectory()
+    {
+        await using var factory = new TrackerFactory();
+        await Seed(factory);
+        var copy = await BackupCommands.BackupAsync(factory.Services, folder, new FakeTimeProvider(Moment));
+        Directory.CreateDirectory(RestoredKeys);
+        await File.WriteAllTextAsync(Path.Combine(RestoredKeys, "key-old.xml"), "<key/>");
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            BackupCommands.RestoreAsync(copy, restored, RestoredKeys));
+
+        Assert.Contains("папке ключей", error.Message);
+        Assert.False(File.Exists(Path.Combine(restored, "tracker.db")));
+        Assert.Equal(["key-old.xml"], Directory.GetFiles(RestoredKeys).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public async Task RestoreRefusesMissingKeys()
+    {
+        await using var factory = new TrackerFactory();
+        await Seed(factory);
+        var copy = await BackupCommands.BackupAsync(factory.Services, folder, new FakeTimeProvider(Moment));
+        Directory.Delete(copy[..^".db".Length] + "-keys", recursive: true);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            BackupCommands.RestoreAsync(copy, restored, RestoredKeys));
+
+        Assert.Contains("ключ", error.Message);
+        Assert.False(File.Exists(Path.Combine(restored, "tracker.db")));
+    }
+
+    [Fact]
+    public async Task RestoreRefusesMissingBackup()
+    {
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            BackupCommands.RestoreAsync(Path.Combine(folder, "нет.db"), restored, RestoredKeys));
+
+        Assert.Contains("не найдена", error.Message);
+        Assert.False(File.Exists(Path.Combine(restored, "tracker.db")));
+    }
+
+    [Fact]
+    public async Task RestoreRunSucceedsOnEmptyDirectory()
+    {
+        await using var factory = new TrackerFactory();
+        await Seed(factory);
+        var copy = await BackupCommands.BackupAsync(factory.Services, folder, new FakeTimeProvider(Moment));
+        await using var services = RestoreServices();
+        var output = new StringWriter();
+
+        var code = await BackupCommands.RunAsync(["--restore", copy], services, output, new StringWriter());
+
+        Assert.Equal(0, code);
+        Assert.Contains("Восстановлено", output.ToString());
+        Assert.Equal("1", Scalar(Path.Combine(restored, "tracker.db"), "SELECT COUNT(*) FROM Assignments"));
+    }
+
+    [Fact]
+    public async Task RestoreRunReturnsOneOnNonEmptyDirectory()
+    {
+        await using var factory = new TrackerFactory();
+        await Seed(factory);
+        var copy = await BackupCommands.BackupAsync(factory.Services, folder, new FakeTimeProvider(Moment));
+        var error = new StringWriter();
+
+        var code = await BackupCommands.RunAsync(["--restore", copy], factory.Services, new StringWriter(), error);
+
+        Assert.Equal(1, code);
+        Assert.Contains("уже есть", error.ToString());
+    }
+
+    [Fact]
+    public async Task RestoreRunWithoutFileFails()
+    {
+        await using var services = RestoreServices();
+        var error = new StringWriter();
+
+        var code = await BackupCommands.RunAsync(["--restore"], services, new StringWriter(), error);
+
+        Assert.Equal(1, code);
+        Assert.Contains("Укажите файл копии после --restore", error.ToString());
     }
 
     [Fact]
