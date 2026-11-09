@@ -14,6 +14,7 @@ var dataDirectory = builder.Configuration["Tracker:DataDirectory"]
 Directory.CreateDirectory(dataDirectory);
 var keyDirectory = builder.Configuration["Tracker:KeyDirectory"] ?? Path.Combine(dataDirectory, "keys");
 Directory.CreateDirectory(keyDirectory);
+builder.Services.AddSingleton(new TrackerPaths(dataDirectory, keyDirectory));
 builder.Services.AddDataProtection().SetApplicationName("Zachet")
     .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
 var proxyAddress = builder.Configuration["Proxy:KnownAddress"];
@@ -66,7 +67,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapTrackerAccounts();
 app.MapNotifications();
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapHealth();
 
 app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
     Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
