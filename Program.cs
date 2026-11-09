@@ -98,6 +98,7 @@ data.MapSubtasks();
 data.MapTokens();
 data.MapImport();
 data.MapCalendar();
+data.MapGroups();
 
 var v1 = app.MapGroup(ApiTokenAuth.V1).RequireAuthorization(ApiTokenAuth.ScopePolicy).RequireRateLimiting(ApiTokenAuth.LimiterPolicy);
 v1.MapSubjects(ApiTokenAuth.V1);

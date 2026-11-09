@@ -30,4 +30,39 @@ public static class GroupSupport
         db.SaveChanges();
         return 0;
     });
+
+    public static string UserId(TrackerFactory factory, string email) => factory.Scope(services =>
+        services.GetRequiredService<TrackerDb>().Users.Single(u => u.Email == email).Id);
+
+    /// <summary>Предмет и задание группы напрямую в базе; возвращает их <c>Id</c>.</summary>
+    public static (int SubjectId, int AssignmentId) AddGroupTask(TrackerFactory factory, int groupId,
+        string subject = "Физика", string title = "Лабораторная") => factory.Scope(services =>
+    {
+        var db = services.GetRequiredService<TrackerDb>();
+        var item = db.Subjects.SingleOrDefault(s => s.GroupId == groupId && s.NameKey == subject.ToUpperInvariant())
+            ?? db.Subjects.Add(new Subject { Name = subject, NameKey = subject.ToUpperInvariant(), Color = "blue", GroupId = groupId }).Entity;
+        db.SaveChanges();
+        var task = db.Assignments.Add(new Assignment
+        { Title = title, SubjectId = item.Id, GroupId = groupId, DueDate = new DateOnly(2026, 12, 12) }).Entity;
+        db.SaveChanges();
+        return (item.Id, task.Id);
+    });
+
+    public static void AddProgress(TrackerFactory factory, int assignmentId, string email, AssignmentStatus status) => factory.Scope(services =>
+    {
+        var db = services.GetRequiredService<TrackerDb>();
+        db.GroupProgress.Add(new GroupProgress
+        { AssignmentId = assignmentId, UserId = db.Users.Single(u => u.Email == email).Id, Status = status });
+        db.SaveChanges();
+        return 0;
+    });
+
+    public static void AddStep(TrackerFactory factory, int assignmentId, string email, string title = "Шаг") => factory.Scope(services =>
+    {
+        var db = services.GetRequiredService<TrackerDb>();
+        db.Subtasks.Add(new Subtask
+        { AssignmentId = assignmentId, Title = title, UserId = db.Users.Single(u => u.Email == email).Id });
+        db.SaveChanges();
+        return 0;
+    });
 }
