@@ -1,7 +1,7 @@
 'use strict';
 
 const CACHE = 'zachet-shell';
-const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/notifications.js', '/api-access.js', '/import.js', '/calendar.js', '/groups.js', '/subtasks.js', '/topnav.js', '/pwa.js', '/favicon.svg', '/icon-192.png', '/icon-512.png'];
+const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/notifications.js', '/api-access.js', '/import.js', '/calendar.js', '/groups.js', '/subtasks.js', '/topnav.js', '/theme.js', '/pwa.js', '/favicon.svg', '/icon-192.png', '/icon-512.png'];
 const SKIP = ['/api', '/health', '/calendar.ics'];
 
 self.addEventListener('install', event => {

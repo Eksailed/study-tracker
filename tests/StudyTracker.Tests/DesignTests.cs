@@ -104,4 +104,63 @@ public partial class DesignTests
         Assert.Contains("<meta name=\"theme-color\" content=\"#6c47ff\">", index);
         Assert.Contains("\"theme_color\": \"#6c47ff\"", manifest);
     }
+
+    [Fact]
+    public async Task EveryPageLoadsThemeScriptBeforeStyles()
+    {
+        await using var factory = new TrackerFactory();
+        using var http = factory.CreateClient();
+
+        foreach (var page in new[] { "/", "/g.html" })
+        {
+            var html = await http.GetStringAsync(page);
+            var script = html.IndexOf("<script src=\"/theme.js\"></script>", StringComparison.Ordinal);
+            var styles = html.IndexOf("<link rel=\"stylesheet\"", StringComparison.Ordinal);
+            Assert.True(script >= 0, $"{page}: theme.js должен подключаться без defer, иначе страница мигнёт светлой темой");
+            Assert.True(script < styles, $"{page}: theme.js должен идти до стилей");
+        }
+    }
+
+    [Fact]
+    public async Task IndexHasThemeToggle()
+    {
+        await using var factory = new TrackerFactory();
+        using var http = factory.CreateClient();
+
+        var index = await http.GetStringAsync("/");
+
+        Assert.Contains("id=\"theme-toggle\"", index);
+        Assert.Contains("href=\"#i-sun\"", index);
+        Assert.Contains("href=\"#i-moon\"", index);
+    }
+
+    [Theory]
+    [InlineData("/app.css")]
+    [InlineData("/g.css")]
+    public async Task StylesDefineDarkTheme(string path)
+    {
+        await using var factory = new TrackerFactory();
+        using var http = factory.CreateClient();
+
+        var css = await http.GetStringAsync(path);
+
+        Assert.Contains("[data-theme=dark]", css);
+        Assert.Contains("color-scheme:dark", css);
+        Assert.DoesNotContain("background:#fff;", css);
+        Assert.DoesNotContain("background:white", css);
+    }
+
+    [Fact]
+    public async Task ThemeScriptStoresChoiceAndIsCached()
+    {
+        await using var factory = new TrackerFactory();
+        using var http = factory.CreateClient();
+
+        var code = await http.GetStringAsync("/theme.js");
+        var worker = await http.GetStringAsync("/sw.js");
+
+        Assert.Contains("localStorage", code);
+        Assert.Contains("prefers-color-scheme", code);
+        Assert.Contains("'/theme.js'", worker);
+    }
 }
