@@ -36,7 +36,7 @@ function weekDates() {
 
 async function api(path, method='GET', data) {
   const generation = sessionGeneration;
-  const personalPath = ['assignments','subjects','notifications','tokens','import','calendar'].some(prefix=>path.startsWith(prefix));
+  const personalPath = ['assignments','subjects','notifications','tokens','import','calendar','group','owner'].some(prefix=>path.startsWith(prefix));
   const response = await fetch(`/api/${path}`, {
     method, credentials:'same-origin',
     headers:method === 'GET' ? {} : {'Content-Type':'application/json', 'X-CSRF-TOKEN':csrfToken},
@@ -399,9 +399,11 @@ async function enterAccount(user) {
   currentUser = user;
   if (savedDraft && savedDraft.owner !== user.id) savedDraft = null;
   csrfToken = (await api('token')).token;
+  if (user.isOwner === undefined) Object.assign(user,await api('auth/me'));
   await loadData();
   if (!currentUser || currentUser.id !== user.id) return;
   $('#account-email').textContent = user.email;
+  document.dispatchEvent(new Event('account-entered'));
   $('#auth-form').reset();
   $('#auth-screen').hidden = true;
   $('#app-shell').hidden = false;
