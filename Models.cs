@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -27,6 +28,9 @@ public class Assignment
     public DateOnly DueDate { get; set; }
     public AssignmentStatus Status { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    /// <summary>Ключ повтора при импорте из Obsidian; у заданий, созданных вручную, пуст.</summary>
+    [JsonIgnore]
+    public string? ImportKey { get; set; }
 }
 
 public class ApplicationUser : IdentityUser;
@@ -67,6 +71,8 @@ public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<
         model.Entity<ApiToken>().HasOne<ApplicationUser>().WithMany().HasForeignKey(t => t.OwnerId).OnDelete(DeleteBehavior.Cascade);
         model.Entity<Subject>().HasIndex(s => new { s.OwnerId, s.NameKey }).IsUnique();
         model.Entity<Subject>().HasOne<ApplicationUser>().WithMany().HasForeignKey(s => s.OwnerId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<Assignment>().Property(a => a.ImportKey).HasMaxLength(300);
+        model.Entity<Assignment>().HasIndex(a => new { a.OwnerId, a.ImportKey }).IsUnique().HasFilter("\"ImportKey\" IS NOT NULL");
         model.Entity<Assignment>().HasOne<ApplicationUser>().WithMany().HasForeignKey(a => a.OwnerId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Assignment>().HasOne(a => a.Subject).WithMany()
             .HasForeignKey(a => new { a.SubjectId, a.OwnerId })

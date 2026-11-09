@@ -273,6 +273,10 @@ namespace StudyTracker.Migrations
                     b.Property<DateOnly>("DueDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ImportKey")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("OwnerId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -289,7 +293,9 @@ namespace StudyTracker.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OwnerId");
+                    b.HasIndex("OwnerId", "ImportKey")
+                        .IsUnique()
+                        .HasFilter("\"ImportKey\" IS NOT NULL");
 
                     b.HasIndex("SubjectId", "OwnerId");
 

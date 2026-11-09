@@ -1,6 +1,6 @@
 # План: импорт заданий из Obsidian
 
-Статус: в работе, версия 0.6, план от 9 ноября 2026 года. Сделана задача 1 из 6 (разбор заметки). Работа идёт сразу в `main`, после каждой задачи — коммит и push.
+Статус: в работе, версия 0.6, план от 9 ноября 2026 года. Сделаны задачи 1–2 из 6 (разбор заметки, колонка `ImportKey`). Работа идёт сразу в `main`, после каждой задачи — коммит и push.
 
 Связано: [спецификация](../specs/импорт-из-obsidian.md), [README](../../README.md), [план версии 0.5](эксплуатация-и-api.md), [модели](../../Models.cs), [CI](../../.github/workflows/check.yml).
 
@@ -107,14 +107,14 @@ public static class ObsidianNote
 
 **Интерфейс:** `Assignment.ImportKey` — `string?`; индекс `IX_Assignments_OwnerId_ImportKey`, уникальный, фильтр `"ImportKey" IS NOT NULL`. Ключ не попадает в ответы `/api/assignments` и `/api/v1/assignments` (там анонимные объекты без него — проверить, не менять).
 
-- [ ] **Шаг 1. Тесты (красные).**
+- [x] **Шаг 1. Тесты (красные).**
   - `ImportKeyIsUniquePerOwner`: два задания одного владельца с одинаковым ключом → `DbUpdateException` на втором; одинаковый ключ у двух разных владельцев — можно; два задания с `ImportKey = null` у одного владельца — можно.
   - `ApiDoesNotShowImportKey`: задание с ключом через базу; `GET assignments` и `GET v1/assignments` (cookie) не содержат поля `importKey`.
   - `MigrationKeepsOldData`: по образцу `DatabaseSetupTests.NotificationMigrationPreservesAccounts` — база на миграции `ApiTokens`, аккаунт, предмет и задание; после применения новой миграции всё на месте, `ImportKey` пуст.
-- [ ] **Шаг 2.** Запуск → красные (нет свойства).
-- [ ] **Шаг 3.** Добавить свойство и индекс в `OnModelCreating`; создать миграцию: `~/.dotnet/dotnet.exe tool run dotnet-ef migrations add ImportKey` (без запуска сервера). Проверить, что в сгенерированном `Up` только `AddColumn` и `CreateIndex` с фильтром.
-- [ ] **Шаг 4.** Запуск → зелёные. «Сломать и вернуть»: убрать `IsUnique()` — `ImportKeyIsUniquePerOwner` красный; убрать `HasFilter` — тест с двумя `null` красный; вернуть.
-- [ ] **Шаг 5.** Полный `dotnet test` (старые `DatabaseSetupTests` должны пройти; если они откатывают историю и ломаются на новой колонке — дополнить по образцу правки задачи 5 версии 0.5 и записать решение), коммит `Колонка ImportKey для импорта`, push, журнал.
+- [x] **Шаг 2.** Запуск → красные (нет свойства).
+- [x] **Шаг 3.** Добавить свойство и индекс в `OnModelCreating`; создать миграцию: `~/.dotnet/dotnet.exe tool run dotnet-ef migrations add ImportKey` (без запуска сервера). Проверить, что в сгенерированном `Up` только `AddColumn` и `CreateIndex` с фильтром.
+- [x] **Шаг 4.** Запуск → зелёные. «Сломать и вернуть»: убрать `IsUnique()` — `ImportKeyIsUniquePerOwner` красный; убрать `HasFilter` — тест с двумя `null` красный; вернуть.
+- [x] **Шаг 5.** Полный `dotnet test` (старые `DatabaseSetupTests` должны пройти; если они откатывают историю и ломаются на новой колонке — дополнить по образцу правки задачи 5 версии 0.5 и записать решение), коммит `Колонка ImportKey для импорта`, push, журнал.
 
 ---
 
