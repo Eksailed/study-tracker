@@ -211,6 +211,9 @@ namespace StudyTracker.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsOwner")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("INTEGER");
 
@@ -273,12 +276,14 @@ namespace StudyTracker.Migrations
                     b.Property<DateOnly>("DueDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("GroupId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ImportKey")
                         .HasMaxLength(300)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("OwnerId")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Priority")
@@ -296,13 +301,18 @@ namespace StudyTracker.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("SubjectId");
+
                     b.HasIndex("OwnerId", "ImportKey")
                         .IsUnique()
                         .HasFilter("\"ImportKey\" IS NOT NULL");
 
-                    b.HasIndex("SubjectId", "OwnerId");
-
-                    b.ToTable("Assignments");
+                    b.ToTable("Assignments", t =>
+                        {
+                            t.HasCheckConstraint("CK_Assignments_OwnerOrGroup", "(\"OwnerId\" IS NULL) <> (\"GroupId\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("StudyTracker.Calendar.CalendarLink", b =>
@@ -332,6 +342,98 @@ namespace StudyTracker.Migrations
                         .IsUnique();
 
                     b.ToTable("CalendarLinks");
+                });
+
+            modelBuilder.Entity("StudyTracker.Group", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("GuestKeyCreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GuestKeyHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NameKey")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuestKeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("NameKey")
+                        .IsUnique();
+
+                    b.ToTable("Groups");
+                });
+
+            modelBuilder.Entity("StudyTracker.GroupMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("GroupMembers");
+                });
+
+            modelBuilder.Entity("StudyTracker.GroupProgress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AssignmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("AssignmentId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("GroupProgress");
                 });
 
             modelBuilder.Entity("StudyTracker.Notifications.NotificationSettings", b =>
@@ -505,6 +607,9 @@ namespace StudyTracker.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("GroupId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -514,15 +619,20 @@ namespace StudyTracker.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("OwnerId")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("GroupId", "NameKey")
+                        .IsUnique();
+
                     b.HasIndex("OwnerId", "NameKey")
                         .IsUnique();
 
-                    b.ToTable("Subjects");
+                    b.ToTable("Subjects", t =>
+                        {
+                            t.HasCheckConstraint("CK_Subjects_OwnerOrGroup", "(\"OwnerId\" IS NULL) <> (\"GroupId\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("StudyTracker.Subtask", b =>
@@ -545,9 +655,14 @@ namespace StudyTracker.Migrations
                         .HasMaxLength(140)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AssignmentId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Subtasks");
                 });
@@ -614,16 +729,19 @@ namespace StudyTracker.Migrations
 
             modelBuilder.Entity("StudyTracker.Assignment", b =>
                 {
+                    b.HasOne("StudyTracker.Group", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("StudyTracker.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("StudyTracker.Subject", "Subject")
                         .WithMany()
-                        .HasForeignKey("SubjectId", "OwnerId")
-                        .HasPrincipalKey("Id", "OwnerId")
+                        .HasForeignKey("SubjectId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -635,6 +753,36 @@ namespace StudyTracker.Migrations
                     b.HasOne("StudyTracker.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StudyTracker.GroupMember", b =>
+                {
+                    b.HasOne("StudyTracker.Group", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StudyTracker.GroupProgress", b =>
+                {
+                    b.HasOne("StudyTracker.Assignment", null)
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -677,11 +825,15 @@ namespace StudyTracker.Migrations
 
             modelBuilder.Entity("StudyTracker.Subject", b =>
                 {
+                    b.HasOne("StudyTracker.Group", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("StudyTracker.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("StudyTracker.Subtask", b =>
@@ -691,6 +843,11 @@ namespace StudyTracker.Migrations
                         .HasForeignKey("AssignmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("StudyTracker.Assignment", b =>

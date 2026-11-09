@@ -88,8 +88,8 @@ public class ImportKeyMigrationTests : IDisposable
             INSERT INTO AspNetUsers (Id, EmailConfirmed, PhoneNumberConfirmed, TwoFactorEnabled, LockoutEnabled, AccessFailedCount)
                 VALUES ('owner',0,0,0,0,0);
             INSERT INTO Subjects (Id, Name, NameKey, Color, OwnerId) VALUES (1, 'Сохранить', 'СОХРАНИТЬ', 'blue', 'owner');
-            INSERT INTO Assignments (Id, Title, Description, SubjectId, DueDate, Status, CreatedAt, OwnerId)
-                VALUES (7, 'Старое задание', '', 1, '2026-12-12', 0, '2026-11-06 10:00:00', 'owner');
+            INSERT INTO Assignments (Id, Title, Description, SubjectId, DueDate, Status, Priority, CreatedAt, OwnerId)
+                VALUES (7, 'Старое задание', '', 1, '2026-12-12', 0, 0, '2026-11-06 10:00:00', 'owner');
             DROP INDEX IX_Assignments_OwnerId_ImportKey;
             ALTER TABLE Assignments DROP COLUMN ImportKey;
             CREATE INDEX IX_Assignments_OwnerId ON Assignments (OwnerId);

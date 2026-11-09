@@ -23,8 +23,8 @@ public sealed class ConflictingInsert(bool armed = true) : SaveChangesIntercepto
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = $"""
-            INSERT INTO Assignments (Title, Description, SubjectId, DueDate, Status, CreatedAt, OwnerId, ImportKey)
-            SELECT 'Вставлено перехватчиком', '', Id, '2026-11-20', 0, '2026-11-09 10:00:00', OwnerId, '{Key}'
+            INSERT INTO Assignments (Title, Description, SubjectId, DueDate, Status, Priority, CreatedAt, OwnerId, ImportKey)
+            SELECT 'Вставлено перехватчиком', '', Id, '2026-11-20', 0, 0, '2026-11-09 10:00:00', OwnerId, '{Key}'
             FROM Subjects WHERE NameKey = 'ИКТ' LIMIT 1;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);

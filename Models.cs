@@ -17,7 +17,9 @@ public class Subject
     public required string Name { get; set; }
     public required string NameKey { get; set; }
     public required string Color { get; set; }
-    public required string OwnerId { get; set; }
+    /// <summary>Личный предмет: владелец. У предмета группы пуст; ровно одно из <c>OwnerId</c> и <c>GroupId</c>.</summary>
+    public string? OwnerId { get; set; }
+    public int? GroupId { get; set; }
 }
 
 public class Assignment
@@ -26,7 +28,9 @@ public class Assignment
     public required string Title { get; set; }
     public string Description { get; set; } = "";
     public int SubjectId { get; set; }
-    public required string OwnerId { get; set; }
+    /// <summary>Личное задание: владелец. У задания группы пуст; ровно одно из <c>OwnerId</c> и <c>GroupId</c>.</summary>
+    public string? OwnerId { get; set; }
+    public int? GroupId { get; set; }
     public Subject? Subject { get; set; }
     public DateOnly DueDate { get; set; }
     public AssignmentStatus Status { get; set; }
@@ -47,9 +51,15 @@ public class Subtask
     public required string Title { get; set; }
     public bool Done { get; set; }
     public int Position { get; set; }
+    /// <summary>Чей это шаг по заданию группы; у шагов личных заданий пуст.</summary>
+    [JsonIgnore]
+    public string? UserId { get; set; }
 }
 
-public class ApplicationUser : IdentityUser;
+public class ApplicationUser : IdentityUser
+{
+    public bool IsOwner { get; set; }
+}
 
 /// <summary>Токен доступа к <c>/api/v1</c>. Сам токен не хранится: только SHA-256 и первые 8 символов для списка.</summary>
 public class ApiToken
@@ -78,6 +88,9 @@ public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<
     public DbSet<ReminderDelivery> ReminderDeliveries => Set<ReminderDelivery>();
     public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
     public DbSet<CalendarLink> CalendarLinks => Set<CalendarLink>();
+    public DbSet<Group> Groups => Set<Group>();
+    public DbSet<GroupMember> GroupMembers => Set<GroupMember>();
+    public DbSet<GroupProgress> GroupProgress => Set<GroupProgress>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -91,17 +104,35 @@ public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<
         model.Entity<CalendarLink>().HasIndex(l => l.OwnerId).IsUnique();
         model.Entity<CalendarLink>().HasIndex(l => l.KeyHash).IsUnique();
         model.Entity<CalendarLink>().HasOne<ApplicationUser>().WithMany().HasForeignKey(l => l.OwnerId).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<Group>().Property(g => g.Name).HasMaxLength(60);
+        model.Entity<Group>().Property(g => g.NameKey).HasMaxLength(60);
+        model.Entity<Group>().Property(g => g.GuestKeyHash).HasMaxLength(64);
+        model.Entity<Group>().HasIndex(g => g.NameKey).IsUnique();
+        model.Entity<Group>().HasIndex(g => g.GuestKeyHash).IsUnique();
+        model.Entity<GroupMember>().HasIndex(m => m.UserId).IsUnique();
+        model.Entity<GroupMember>().HasIndex(m => m.GroupId);
+        model.Entity<GroupMember>().HasOne<Group>().WithMany().HasForeignKey(m => m.GroupId).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<GroupMember>().HasOne<ApplicationUser>().WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<GroupProgress>().HasIndex(p => new { p.AssignmentId, p.UserId }).IsUnique();
+        model.Entity<GroupProgress>().HasOne<Assignment>().WithMany().HasForeignKey(p => p.AssignmentId).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<GroupProgress>().HasOne<ApplicationUser>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<Subtask>().HasOne<ApplicationUser>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<Subject>().ToTable(t => t.HasCheckConstraint("CK_Subjects_OwnerOrGroup", "(\"OwnerId\" IS NULL) <> (\"GroupId\" IS NULL)"));
+        model.Entity<Assignment>().ToTable(t => t.HasCheckConstraint("CK_Assignments_OwnerOrGroup", "(\"OwnerId\" IS NULL) <> (\"GroupId\" IS NULL)"));
         model.Entity<Subject>().HasIndex(s => new { s.OwnerId, s.NameKey }).IsUnique();
+        model.Entity<Subject>().HasIndex(s => new { s.GroupId, s.NameKey }).IsUnique();
         model.Entity<Subject>().HasOne<ApplicationUser>().WithMany().HasForeignKey(s => s.OwnerId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<Subject>().HasOne<Group>().WithMany().HasForeignKey(s => s.GroupId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<Assignment>().HasOne<Group>().WithMany().HasForeignKey(a => a.GroupId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Subtask>().Property(s => s.Title).HasMaxLength(140);
         model.Entity<Subtask>().HasIndex(s => s.AssignmentId);
         model.Entity<Assignment>().HasMany(a => a.Subtasks).WithOne().HasForeignKey(s => s.AssignmentId).OnDelete(DeleteBehavior.Cascade);
         model.Entity<Assignment>().Property(a => a.ImportKey).HasMaxLength(300);
         model.Entity<Assignment>().HasIndex(a => new { a.OwnerId, a.ImportKey }).IsUnique().HasFilter("\"ImportKey\" IS NOT NULL");
         model.Entity<Assignment>().HasOne<ApplicationUser>().WithMany().HasForeignKey(a => a.OwnerId).OnDelete(DeleteBehavior.Restrict);
-        model.Entity<Assignment>().HasOne(a => a.Subject).WithMany()
-            .HasForeignKey(a => new { a.SubjectId, a.OwnerId })
-            .HasPrincipalKey(s => new { s.Id, s.OwnerId }).OnDelete(DeleteBehavior.Restrict);
+        // Совпадение владельца и группы у задания и предмета держат триггеры TR_Assignments_SubjectScope_*
+        // (миграция RolesAndGroups): EF не умеет составной внешний ключ по необязательным колонкам.
+        model.Entity<Assignment>().HasOne(a => a.Subject).WithMany().HasForeignKey(a => a.SubjectId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
