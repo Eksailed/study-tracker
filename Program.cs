@@ -9,6 +9,7 @@ using StudyTracker.Notifications;
 
 var migrate = args.Contains("--migrate");
 var builder = WebApplication.CreateBuilder(args.Where(a => !CommandLine.Flags.Contains(a)).ToArray());
+if (!builder.Environment.IsDevelopment()) builder.Logging.AddJsonConsole();
 var dataDirectory = builder.Configuration["Tracker:DataDirectory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "v02");
 Directory.CreateDirectory(dataDirectory);
@@ -43,6 +44,7 @@ builder.Services.AddTrackerAccounts(builder.Environment);
 builder.AddNotifications();
 
 var app = builder.Build();
+app.UseRequestLogging();
 app.UseExceptionHandler();
 try
 {
