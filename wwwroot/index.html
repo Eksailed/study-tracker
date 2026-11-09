@@ -11,6 +11,7 @@
   <script src="/app.js" defer></script>
   <script src="/notifications.js" defer></script>
   <script src="/api-access.js" defer></script>
+  <script src="/import.js" defer></script>
 </head>
 <body>
   <svg class="svg-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -27,6 +28,7 @@
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10 4 2 18a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3L14 4a2 2 0 0 0-4 0zM12 9v4M12 17h.01"/></symbol>
     <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3M14 9l2 2"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
   </svg>
   <a class="skip-link" href="#main" hidden>К заданиям</a>
@@ -55,6 +57,7 @@
         <button class="nav-item" data-view="all"><svg class="icon"><use href="#i-book"/></svg>Все задания</button>
         <button class="nav-item" id="open-notifications"><svg class="icon"><use href="#i-bell"/></svg>Уведомления</button>
         <button class="nav-item" id="open-tokens"><svg class="icon"><use href="#i-key"/></svg>Доступ к API</button>
+        <button class="nav-item" id="open-import"><svg class="icon"><use href="#i-upload"/></svg>Импорт из Obsidian</button>
       </nav>
       <div class="subjects-heading"><h2>Предметы</h2><button class="icon-button" id="add-subject" aria-label="Добавить предмет"><svg class="icon"><use href="#i-plus"/></svg></button></div>
       <div id="subjects" class="subjects"></div>
@@ -144,6 +147,18 @@
       <div class="token-scopes"><label class="notification-check"><input name="read" type="checkbox" checked><span>Чтение заданий</span></label><label class="notification-check"><input name="write" type="checkbox"><span>Запись заданий</span></label></div>
       <label for="token-days">Срок действия, дней</label><input id="token-days" name="days" type="number" min="1" max="365" value="90" required inputmode="numeric">
     </fieldset><p class="form-error" role="alert"></p><div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Закрыть</button><button class="primary-button" type="submit">Создать токен</button></div></form>
+  </dialog>
+  <dialog id="import-dialog" aria-labelledby="import-title">
+    <div class="dialog-heading"><div><h2 id="import-title">Импорт из Obsidian</h2><p class="notification-intro">Выбери папку с заданиями из хранилища. Тексты заметок уходят на сайт для предпросмотра, а задания создаются только после «Добавить». Уже добавленные не повторяются.</p></div><button class="icon-button close-dialog" type="button" aria-label="Закрыть импорт"><svg class="icon"><use href="#i-close"/></svg></button></div>
+    <input id="import-folder" type="file" webkitdirectory hidden aria-label="Папка с заметками">
+    <input id="import-files" type="file" multiple accept=".md,text/markdown" hidden aria-label="Файлы заметок">
+    <div class="import-pick"><button id="import-pick-folder" class="primary-button" type="button">Выбрать папку</button><button id="import-pick-files" class="secondary-button" type="button">Выбрать файлы</button></div>
+    <div class="import-due"><label for="import-due">Срок для заметок без срока <span class="optional">необязательно</span></label><input id="import-due" type="date" min="2000-01-01" max="2100-12-31"></div>
+    <p id="import-summary" class="import-summary" aria-live="polite">Выбери папку или файлы заметок.</p>
+    <section id="import-new-section" class="import-section" hidden><h3>Будет добавлено</h3><ul id="import-new" class="import-list" tabindex="0" aria-label="Список новых заданий"></ul></section>
+    <section id="import-skipped-section" class="import-section" hidden><h3>Пропущено</h3><ul id="import-skipped" class="import-list" tabindex="0" aria-label="Список пропущенных заметок"></ul></section>
+    <p id="import-problem" class="form-error" role="alert"></p>
+    <div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Закрыть</button><button id="import-apply" class="primary-button" type="button" disabled>Добавить</button></div>
   </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body>

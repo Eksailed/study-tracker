@@ -33,3 +33,14 @@
 .token-scopes{display:flex;gap:22px;flex-wrap:wrap;margin:16px 0 0}
 .token-scopes .notification-check{margin:0}
 @media(max-width:560px){.token-item{flex-direction:column}.token-copy{flex-direction:column;align-items:stretch}}
+#import-dialog{width:min(650px,calc(100% - 28px))}
+.import-pick{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.import-due{margin-bottom:16px}
+.import-due label{display:block;font-size:12px;font-weight:600;margin-bottom:8px}
+.import-summary{font-size:13px;line-height:1.7;margin:0 0 12px;overflow-wrap:anywhere}
+.import-section h3{font-size:13px;margin:14px 0 6px}
+.import-list{list-style:none;margin:0 0 10px;padding:0;max-height:170px;overflow-y:auto;border:1px solid var(--line);border-radius:10px}
+.import-list li{padding:8px 12px;font-size:12px;line-height:1.6;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.import-list li:last-child{border-bottom:0}
+.import-list li span{display:block;color:var(--muted);font-size:11px}
+@media(max-width:560px){.import-pick{flex-direction:column}.import-pick button{width:100%}}

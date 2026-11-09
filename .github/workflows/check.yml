@@ -48,6 +48,7 @@ jobs:
           node --check wwwroot/notifications.js
           node --check wwwroot/api-docs.js
           node --check wwwroot/api-access.js
+          node --check wwwroot/import.js
       - name: Тесты на C#
         run: dotnet test tests/StudyTracker.Tests --nologo
   deployment:
