@@ -100,6 +100,28 @@ public class ObsidianImportTests
     }
 
     [Fact]
+    public async Task DeletedTaskComesBackOnNextImport()
+    {
+        await using var factory = new TrackerFactory();
+        var owner = await Owner(factory, "owner@example.test");
+        Run(factory, import => import.ApplyAsync(owner, Three()));
+        factory.Scope(services =>
+        {
+            var db = services.GetRequiredService<TrackerDb>();
+            db.Assignments.Remove(db.Assignments.Single(a => a.ImportKey == "s-2"));
+            db.SaveChanges();
+            return 0;
+        });
+
+        var report = Run(factory, import => import.ApplyAsync(owner, Three()));
+
+        Assert.Equal(1, report.NewCount);
+        Assert.Equal(2, report.ExistingCount);
+        Assert.Equal(3, Db(factory, db => db.Assignments.Count()));
+        Assert.Equal(["Лаба икт"], Db(factory, db => db.Assignments.Where(a => a.ImportKey == "s-2").Select(a => a.Title).ToList()));
+    }
+
+    [Fact]
     public async Task ExistingSubjectIsReused()
     {
         await using var factory = new TrackerFactory();
