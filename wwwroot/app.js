@@ -10,7 +10,8 @@ const today = () => dateKey(new Date());
 const formatDate = key => localDate(key).toLocaleDateString('ru-RU', {day:'numeric', month:'short'});
 const statuses = {Todo:'Нужно сделать', InProgress:'В работе', Done:'Выполнено'};
 const titles = {active:'Мои задания', upcoming:'На этой неделе', done:'Выполненные', all:'Все задания', overdue:'Срок прошёл'};
-const state = {subjects:[], assignments:[], view:'active', subject:null, status:'any', query:'', sort:'due', date:null};
+const state = {subjects:[], assignments:[], view:'active', subject:null, status:'any', scope:'all', query:'', sort:'due', date:null};
+const scopeNames = {personal:'Только личные', group:'Только группа'};
 let csrfToken;
 let editingId = null;
 let pendingTask = false;
@@ -87,6 +88,13 @@ async function refreshAfterChange(message) {
   catch (error) { if (error.status !== 401) notify('Изменения сохранены, но список не обновился. Обновите страницу.',true); }
 }
 
+/** Староста с подтверждённым членством: только он создаёт предметы и задания группы. */
+const isHead = () => currentUser?.group?.role === 'Head' && currentUser.group.status === 'Active';
+const myGroupId = () => currentUser?.group?.status === 'Active' ? currentUser.group.id : null;
+/** Личное правит его владелец, групповое — староста этой группы. Всё остальное сервер всё равно отклонит. */
+const canLead = item => item.groupId == null || (isHead() && item.groupId === currentUser.group.id);
+const subjectsOf = groupId => state.subjects.filter(s => (s.groupId ?? null) === groupId);
+
 function subjectOf(task) {
   return state.subjects.find(s => s.id === task.subjectId) || {name:'Предмет удалён',color:'slate'};
 }
@@ -125,19 +133,27 @@ function render() {
     button.setAttribute('aria-pressed',String(button.dataset.status === state.status));
   });
   $('.tabs').hidden = state.view === 'done';
+  renderScope();
   renderSubjects(active);
   renderAssignments(week);
   renderPlanning(active,done,week);
+}
+
+function renderScope() {
+  const shown = myGroupId() !== null;
+  if (!shown) state.scope = 'all';
+  $('#scope-filter').hidden = !shown;
+  $$('[data-scope]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.scope === state.scope)));
 }
 
 function renderSubjects(active) {
   $('#subjects').innerHTML = state.subjects.length ? state.subjects.map(subject => `
     <div class="subject-row ${state.subject === subject.id ? 'selected' : ''}">
       <button class="subject-link ${subject.color}" data-subject="${subject.id}" aria-pressed="${state.subject === subject.id}">
-        <span class="subject-dot"></span><span class="subject-name">${escapeHtml(subject.name)}</span>
+        <span class="subject-dot"></span><span class="subject-name">${escapeHtml(subject.name)}</span>${subject.groupId != null ? `<span class="group-mark" title="Предмет группы">${icon('users')}<span class="visually-hidden">группа</span></span>` : ''}
         <span class="subject-number">${active.filter(a => a.subjectId === subject.id).length}</span>
       </button>
-      <button class="icon-button" data-delete-subject="${subject.id}" aria-label="Удалить предмет ${escapeHtml(subject.name)}">${icon('trash')}</button>
+      ${canLead(subject) ? `<button class="icon-button" data-delete-subject="${subject.id}" aria-label="Удалить предмет ${escapeHtml(subject.name)}">${icon('trash')}</button>` : ''}
     </div>`).join('') : '<p class="sidebar-empty">Добавь первый предмет<br>с помощью кнопки «+».</p>';
 }
 
@@ -148,6 +164,8 @@ function renderAssignments(week) {
     if (state.view === 'overdue' && (a.status === 'Done' || a.dueDate >= today())) return false;
     if (state.view === 'upcoming' && (a.status === 'Done' || !week.includes(a.dueDate))) return false;
     if (state.subject && a.subjectId !== state.subject) return false;
+    if (state.scope === 'personal' && a.groupId != null) return false;
+    if (state.scope === 'group' && a.groupId == null) return false;
     if (state.status !== 'any' && a.status !== state.status) return false;
     if (state.date && a.dueDate !== state.date) return false;
     return `${a.title} ${a.description} ${subjectOf(a).name}`.toLocaleLowerCase('ru').includes(state.query.toLocaleLowerCase('ru'));
@@ -157,11 +175,11 @@ function renderAssignments(week) {
     : state.sort === 'priority'
     ? priorityRank[a.priority]-priorityRank[b.priority] || a.dueDate.localeCompare(b.dueDate) || a.id-b.id
     : a.dueDate.localeCompare(b.dueDate) || a.id-b.id);
-  const filtered = Boolean(state.subject || state.date || state.query || state.status !== 'any');
+  const filtered = Boolean(state.subject || state.date || state.query || state.status !== 'any' || state.scope !== 'all');
   $('#filter-info').hidden = !filtered;
   $('#filter-caption').textContent = [state.subject && subjectOf({subjectId:state.subject}).name,
     state.date && formatDate(state.date),state.query && `Поиск: ${state.query}`,
-    state.status !== 'any' && statuses[state.status]].filter(Boolean).join(' · ');
+    state.status !== 'any' && statuses[state.status], scopeNames[state.scope]].filter(Boolean).join(' · ');
   $('#list-caption').textContent = state.view === 'done' ? 'Уже позади' : 'Твои задания';
   $('#list-total').textContent = `Показано заданий: ${tasks.length}`;
   if (!tasks.length) {
@@ -180,13 +198,13 @@ function renderAssignments(week) {
     const isDone = task.status === 'Done';
     return `<article class="task-row ${isDone ? 'done' : ''}">
       <button class="task-check" data-toggle="${task.id}" aria-pressed="${isDone}" aria-label="${isDone ? 'Вернуть в работу' : 'Отметить выполненным'}: ${escapeHtml(task.title)}">${icon('check')}</button>
-      <div class="task-main"><button class="task-title" data-edit="${task.id}">${escapeHtml(task.title)}</button>
+      <div class="task-main">${canLead(task) ? `<button class="task-title" data-edit="${task.id}">${escapeHtml(task.title)}</button>` : `<span class="task-title readonly">${escapeHtml(task.title)}</span>`}
       ${task.description ? `<p class="task-description">${escapeHtml(task.description)}</p>` : ''}
-      <div class="task-meta"><span class="subject-tag ${subject.color}">${escapeHtml(subject.name)}</span>
+      <div class="task-meta"><span class="subject-tag ${subject.color}">${escapeHtml(subject.name)}</span>${task.groupId != null ? '<span class="group-tag">Группа</span>' : ''}
       <span class="due-label ${!isDone && task.dueDate < today() ? 'overdue' : ''}">${icon('calendar')}${deadline(task)}</span>
       ${priorityTag(task)}${stepsToggle(task)}
       <span class="status-tag status-${task.status.toLowerCase()}">${statuses[task.status]}</span></div>${stepsBlock(task)}</div>
-      <div class="task-actions"><button class="icon-button" data-edit="${task.id}" aria-label="Изменить задание ${escapeHtml(task.title)}">${icon('edit')}</button><button class="icon-button" data-delete-task="${task.id}" aria-label="Удалить задание ${escapeHtml(task.title)}">${icon('trash')}</button></div>
+      ${canLead(task) ? `<div class="task-actions"><button class="icon-button" data-edit="${task.id}" aria-label="Изменить задание ${escapeHtml(task.title)}">${icon('edit')}</button><button class="icon-button" data-delete-task="${task.id}" aria-label="Удалить задание ${escapeHtml(task.title)}">${icon('trash')}</button></div>` : ''}
     </article>`;
   }).join('');
 }
@@ -207,8 +225,9 @@ function renderPlanning(active,done,week) {
   $('#legend-left').textContent = active.length;
 }
 
-function resetFilters() {
+function resetFilters(withScope=false) {
   Object.assign(state,{subject:null,status:'any',query:'',date:null});
+  if (withScope === true) state.scope = 'all';
   $('#search').value = '';
   render();
 }
@@ -217,26 +236,54 @@ function setView(view) { state.view = view; resetFilters(); }
 
 function openSubject() {
   const form = $('#subject-form'); form.reset(); $('.form-error',form).textContent = '';
+  $('#subject-scope').hidden = !isHead();
+  if (isHead() && state.scope === 'group') form.elements.scope.value = 'group';
   $('#subject-dialog').showModal();
 }
 
-function openTask(id=null) {
+/** Предметы для выбранного списка: личные или группы. Пустой список — понятная подсказка вместо пустого выбора. */
+function fillTaskSubjects(groupId, selected) {
+  const form = $('#task-form');
+  const list = subjectsOf(groupId);
+  form.elements.subjectId.innerHTML = list.length ? list.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('') : '<option value="">Нет предметов</option>';
+  if (list.length) form.elements.subjectId.value = list.some(s => s.id === selected) ? selected : list[0].id;
+  $('.form-error',form).textContent = list.length ? '' : (groupId === null ? 'Личных предметов пока нет. Добавьте предмет кнопкой «+».' : 'У группы пока нет предметов. Добавьте предмет группы кнопкой «+».');
+}
+
+const taskScopeGroup = () => $('#task-scope').hidden ? (editingGroupId ?? null) : ($('#task-form').elements.scope.value === 'group' ? myGroupId() : null);
+let editingGroupId = null;
+
+function openTask(id=null, scope=null) {
   if (!ready) return notify('Данные ещё загружаются. Попробуйте через несколько секунд.',true);
   if (!state.subjects.length) { pendingTask = true; openSubject(); return; }
   editingId = id;
   const task = state.assignments.find(a => a.id === id);
+  editingGroupId = task?.groupId ?? null;
   const form = $('#task-form'); form.reset();
   $('.form-error',form).textContent = '';
   $('#task-dialog-title').textContent = task ? 'Изменить задание' : 'Новое задание';
-  form.elements.subjectId.innerHTML = state.subjects.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  const chooser = !task && isHead();
+  $('#task-scope').hidden = !chooser;
+  const known = state.subjects.find(s => s.id === state.subject);
+  const wantGroup = chooser && (scope ? scope === 'group' : known ? known.groupId != null : state.scope === 'group');
+  if (wantGroup) form.elements.scope.value = 'group';
+  fillTaskSubjects(task ? editingGroupId : wantGroup ? myGroupId() : null, task?.subjectId || state.subject);
   form.elements.title.value = task?.title || '';
   form.elements.description.value = task?.description || '';
-  form.elements.subjectId.value = task?.subjectId || state.subject || state.subjects[0].id;
   form.elements.dueDate.value = task?.dueDate || state.date || today();
   form.elements.status.value = task?.status || 'Todo';
   form.elements.priority.value = task?.priority || 'Normal';
+  syncTaskStatus();
   $('#task-dialog').showModal();
 }
+
+/** Статус выполнения у задания группы личный у каждого студента, поэтому в форме его нет. */
+function syncTaskStatus() { $('#task-status-field').hidden = taskScopeGroup() !== null; }
+
+$('#task-scope').addEventListener('change',() => {
+  fillTaskSubjects(taskScopeGroup(), null);
+  syncTaskStatus();
+});
 
 function confirmDelete(kind,id) {
   const record = (kind === 'task' ? state.assignments : kind === 'token' ? apiTokens : state.subjects).find(a => a.id === id);
@@ -265,9 +312,11 @@ async function submitForm(event,action) {
 
 $('#task-form').addEventListener('submit',event => submitForm(event,async form => {
   const data = new FormData(form);
+  const groupId = editingId ? undefined : taskScopeGroup() ?? undefined;
+  if (!data.get('subjectId')) throw new Error('Выберите предмет. Если предметов нет, добавьте его кнопкой «+».');
   await api(editingId ? `assignments/${editingId}` : 'assignments',editingId ? 'PUT' : 'POST',{
     title:data.get('title'),description:data.get('description'),subjectId:Number(data.get('subjectId')),
-    dueDate:data.get('dueDate'),status:data.get('status'),priority:data.get('priority')
+    dueDate:data.get('dueDate'),status:taskScopeGroup() === null ? data.get('status') : 'Todo',priority:data.get('priority'),groupId
   });
   $('#task-dialog').close();
   await refreshAfterChange(editingId ? 'Задание обновлено' : 'Задание добавлено');
@@ -275,7 +324,9 @@ $('#task-form').addEventListener('submit',event => submitForm(event,async form =
 
 $('#subject-form').addEventListener('submit',event => submitForm(event,async form => {
   const data = new FormData(form);
-  const subject = await api('subjects','POST',{name:data.get('name'),color:data.get('color')});
+  const groupId = isHead() && data.get('scope') === 'group' ? myGroupId() : undefined;
+  const subject = await api('subjects','POST',{name:data.get('name'),color:data.get('color'),groupId});
+  if (state.scope !== 'all' && (subject.groupId != null) !== (state.scope === 'group')) state.scope = 'all';
   const shouldOpenTask = pendingTask;
   pendingTask = false;
   $('#subject-dialog').close();
@@ -313,6 +364,7 @@ document.addEventListener('click',async event => {
     state.view = 'active'; state.status = 'any'; state.date = null; render();
   }
   if (button.dataset.status) { state.status = button.dataset.status; render(); }
+  if (button.dataset.scope) { state.scope = button.dataset.scope; state.subject = null; render(); }
   if (button.dataset.date) { const date = button.dataset.date; setView('all'); state.date = date; render(); }
   if (button.dataset.edit) openTask(Number(button.dataset.edit));
   if (button.dataset.deleteTask) confirmDelete('task',Number(button.dataset.deleteTask));
@@ -323,11 +375,13 @@ document.addEventListener('click',async event => {
     button.disabled = true;
     try {
       const done = task.status !== 'Done';
-      await api(`assignments/${task.id}`,'PUT',{...task,status:done ? 'Done' : 'Todo'});
+      const status = done ? 'Done' : 'Todo';
+      if (task.groupId != null) await api(`assignments/${task.id}/progress`,'PUT',{status});
+      else await api(`assignments/${task.id}`,'PUT',{...task,status});
       await refreshAfterChange(done ? 'Готово! Ещё на одно задание меньше' : 'Задание возвращено в работу');
     } catch (error) { notify(error.message || 'Сервер недоступен.',true); button.disabled = false; }
   }
-  if (button.dataset.emptyAction === 'reset') resetFilters();
+  if (button.dataset.emptyAction === 'reset') resetFilters(true);
   if (button.dataset.emptyAction === 'task') openTask();
   if (button.dataset.emptyAction === 'subject') { pendingTask = true; openSubject(); }
   if (button.dataset.reload !== undefined) initialize();
@@ -335,7 +389,7 @@ document.addEventListener('click',async event => {
 
 $('#add-assignment').addEventListener('click',() => openTask());
 $('#add-subject').addEventListener('click',() => { if (ready) { pendingTask = false; openSubject(); } });
-$('#clear-filters').addEventListener('click',resetFilters);
+$('#clear-filters').addEventListener('click',() => resetFilters(true));
 $('#search').addEventListener('input',event => { state.query = event.target.value; if (ready) renderAssignments(weekDates()); });
 $('#sort').addEventListener('change',event => { state.sort = event.target.value; if (ready) renderAssignments(weekDates()); });
 $('#subject-dialog').addEventListener('close',() => { if (!$('#task-dialog').open) pendingTask = false; });
@@ -378,7 +432,7 @@ function showLogin(message='', preserveDraft=true) {
   sessionGeneration++;
   ready = false;
   $$('dialog[open]').forEach(dialog => dialog.close());
-  Object.assign(state,{subjects:[],assignments:[],view:'active',subject:null,status:'any',query:'',sort:'due',date:null});
+  Object.assign(state,{subjects:[],assignments:[],view:'active',subject:null,status:'any',scope:'all',query:'',sort:'due',date:null});
   $('#search').value = ''; $('#sort').value = 'due';
   $('#task-form').reset(); $('#task-form').elements.subjectId.innerHTML = '';
   $('#confirm-message').textContent = '';
@@ -441,8 +495,9 @@ $('#restore-draft').addEventListener('click',() => {
   if (!state.subjects.some(s=>s.id === Number(draft.data.subjectId)) ||
       (draft.id && !state.assignments.some(a=>a.id === draft.id)))
     return notify('Предмет или задание уже удалены. Создайте новое задание.',true);
-  openTask(draft.id);
-  for (const [key,value] of Object.entries(draft.data)) $('#task-form').elements[key].value = value;
+  openTask(draft.id, draft.data.scope);
+  for (const [key,value] of Object.entries(draft.data)) if (key !== 'scope') $('#task-form').elements[key].value = value;
+  syncTaskStatus();
 });
 $('#discard-draft').addEventListener('click',()=> { savedDraft = null; $('#draft-dialog').close(); });
 $('#draft-dialog').addEventListener('cancel',()=> { savedDraft = null; });

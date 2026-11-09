@@ -88,6 +88,7 @@
         <div class="content-grid">
           <section class="assignment-panel" aria-label="Задания">
             <div class="panel-toolbar"><div class="tabs" aria-label="Фильтр по статусу"><button class="tab active" data-status="any">Все</button><button class="tab" data-status="Todo">Нужно сделать</button><button class="tab" data-status="InProgress">В работе</button></div><label class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Найти задание" aria-label="Поиск заданий" maxlength="140"></label></div>
+            <div id="scope-filter" class="scope-filter" role="group" aria-label="Чьи задания" hidden><button class="scope-tab" data-scope="all" aria-pressed="true">Все</button><button class="scope-tab" data-scope="personal" aria-pressed="false">Личные</button><button class="scope-tab" data-scope="group" aria-pressed="false">Группа</button></div>
             <div class="list-heading"><span id="list-caption">Твои задания</span><label class="sort-label">Порядок<select id="sort" aria-label="Порядок заданий"><option value="due">Сначала ближайшие</option><option value="new">Сначала новые</option><option value="subject">По предмету</option><option value="priority">По важности</option></select></label></div>
             <div id="filter-info" class="filter-info" hidden><span id="filter-caption"></span><button id="clear-filters" class="text-button">Сбросить фильтры</button></div>
             <div id="assignment-list" aria-live="polite"><p class="loading">Загружаем задания…</p></div>
@@ -105,15 +106,17 @@
   </div>
   <dialog id="task-dialog" aria-labelledby="task-dialog-title">
     <form id="task-form"><div class="dialog-heading"><h2 id="task-dialog-title">Новое задание</h2><button type="button" class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <fieldset id="task-scope" class="scope-field" hidden><legend>Куда добавить</legend><label><input type="radio" name="scope" value="personal" checked>Личное</label><label><input type="radio" name="scope" value="group">Группа</label></fieldset>
       <label>Название<input name="title" required maxlength="140" placeholder="Например, подготовить лабораторную № 2"></label>
       <div class="form-row"><label>Предмет<select name="subjectId" required></select></label><label>Сдать до<input name="dueDate" type="date" required min="2000-01-01" max="2100-12-31"></label></div>
-      <div class="form-row"><label>Статус<select name="status"><option value="Todo">Нужно сделать</option><option value="InProgress">В работе</option><option value="Done">Выполнено</option></select></label><label>Важность<select name="priority" id="task-priority"><option value="Normal">Обычная</option><option value="Important">Важная</option><option value="Urgent">Срочная</option></select></label></div>
+      <div class="form-row"><label id="task-status-field">Статус<select name="status"><option value="Todo">Нужно сделать</option><option value="InProgress">В работе</option><option value="Done">Выполнено</option></select></label><label>Важность<select name="priority" id="task-priority"><option value="Normal">Обычная</option><option value="Important">Важная</option><option value="Urgent">Срочная</option></select></label></div>
       <label>Описание <span class="optional">необязательно</span><textarea name="description" rows="4" maxlength="2000" placeholder="Что нужно сделать, требования или ссылка на материалы"></textarea></label>
       <p class="form-error" role="alert"></p><div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Отмена</button><button class="primary-button" type="submit">Сохранить задание</button></div>
     </form>
   </dialog>
   <dialog id="subject-dialog" aria-labelledby="subject-dialog-title">
     <form id="subject-form"><div class="dialog-heading"><h2 id="subject-dialog-title">Новый предмет</h2><button type="button" class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <fieldset id="subject-scope" class="scope-field" hidden><legend>Куда добавить</legend><label><input type="radio" name="scope" value="personal" checked>Личное</label><label><input type="radio" name="scope" value="group">Группа</label></fieldset>
       <label>Название<input name="name" required maxlength="80" placeholder="Например, базы данных"></label>
       <fieldset class="color-field"><legend>Цвет предмета</legend><div class="color-options">
         <label class="color-option blue"><input type="radio" name="color" value="blue" checked><span>Синий</span></label>

@@ -41,6 +41,7 @@ function stepsBlock(task) {
   const everyDone = count > 0 && stepsDone(task) === count && task.status !== 'Done';
   return `${everyDone ? `<div class="steps-ready"><span>Все шаги готовы. Отметить задание выполненным?</span><button class="secondary-button" type="button" data-toggle="${task.id}">Отметить выполненным</button></div>` : ''}
     <div class="steps-panel" id="steps-${task.id}" ${openSteps.has(task.id) ? '' : 'hidden'}>
+      ${task.groupId != null ? '<p class="steps-note">Шаги видишь только ты: другие студенты и староста их не увидят.</p>' : ''}
       ${count ? `<ul class="step-list">${task.subtasks.map((step, i) => stepRow(step, i, i === count - 1)).join('')}</ul>` : ''}
       <input type="text" class="step-new" data-step-new="${task.id}" maxlength="140" ${full ? 'disabled' : ''} placeholder="${full ? `Больше ${MAX_STEPS} шагов не добавить` : 'Добавить шаг и нажать Enter'}" aria-label="Добавить шаг к заданию ${escapeHtml(task.title)}">
     </div>`;

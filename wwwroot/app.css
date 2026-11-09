@@ -100,3 +100,19 @@
 .guest-address input{min-width:0}
 #group-dialog .dialog-actions,#owner-dialog .dialog-actions{flex-wrap:wrap}
 @media(max-width:560px){.group-row{flex-direction:column;align-items:stretch}.group-row-actions{justify-content:flex-start}.owner-group-select{max-width:none;width:100%}}
+.visually-hidden{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap}
+.scope-filter{display:flex;flex-wrap:wrap;gap:6px;margin:14px 20px 0}
+.scope-filter[hidden]{display:none}
+.scope-tab{border-radius:999px;background:#f0f3f8;color:#5b6881;font-size:11px;font-weight:600;padding:6px 12px}
+.scope-tab[aria-pressed="true"]{background:#edf2ff;color:var(--blue)}
+.group-tag{font-size:10px;font-weight:600;border-radius:4px;padding:4px 7px;color:#4a4d9c;background:#ececfb}
+.group-mark{display:inline-flex;align-items:center;color:#8e98a9}
+.group-mark .icon{width:13px;height:13px}
+.task-title.readonly{cursor:default}
+.task-title.readonly:hover{color:inherit}
+.steps-note{margin:0 0 8px;font-size:11px;color:#8b95a6}
+.scope-field{border:0;padding:0;margin:0 0 19px;display:flex;gap:18px;flex-wrap:wrap}
+.scope-field[hidden],#task-status-field[hidden]{display:none}
+.scope-field legend{font-size:12px;font-weight:600;margin-bottom:10px;padding:0;width:100%}
+.scope-field label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;margin:0}
+@media(max-width:560px){.scope-filter{margin:12px 14px 0}}
