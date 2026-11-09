@@ -59,6 +59,8 @@
       <div class="workspace"><span class="workspace-avatar">Я</span><div><strong>Моя учёба</strong><span>Личное пространство</span></div></div>
       <div class="account-bar"><span id="account-email"></span><button class="text-button" id="logout" type="button">Выйти</button></div>
       <nav class="main-nav" aria-label="Разделы">
+        <button class="nav-item" id="open-group"><svg class="icon"><use href="#i-users"/></svg>Группа</button>
+        <button class="nav-item" id="open-owner" hidden><svg class="icon"><use href="#i-shield"/></svg>Владелец</button>
         <button class="nav-item selected" data-view="active"><svg class="icon"><use href="#i-grid"/></svg>Мои задания<span class="nav-count" id="active-count">0</span></button>
         <button class="nav-item" data-view="upcoming"><svg class="icon"><use href="#i-calendar"/></svg>На этой неделе</button>
         <button class="nav-item" data-view="done"><svg class="icon"><use href="#i-check"/></svg>Выполненные</button>
@@ -67,8 +69,6 @@
         <button class="nav-item" id="open-tokens"><svg class="icon"><use href="#i-key"/></svg>Доступ к API</button>
         <button class="nav-item" id="open-import"><svg class="icon"><use href="#i-upload"/></svg>Импорт из Obsidian</button>
         <button class="nav-item" id="open-calendar"><svg class="icon"><use href="#i-calendar"/></svg>Календарь</button>
-        <button class="nav-item" id="open-group"><svg class="icon"><use href="#i-users"/></svg>Группа</button>
-        <button class="nav-item" id="open-owner" hidden><svg class="icon"><use href="#i-shield"/></svg>Владелец</button>
       </nav>
       <div class="subjects-heading"><h2>Предметы</h2><button class="icon-button" id="add-subject" aria-label="Добавить предмет"><svg class="icon"><use href="#i-plus"/></svg></button></div>
       <div id="subjects" class="subjects"></div>
