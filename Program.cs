@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Net;
 using StudyTracker.Notifications;
+using StudyTracker.ApiTokens;
 
 var migrate = args.Contains("--migrate");
 var builder = WebApplication.CreateBuilder(args.Where(a => !CommandLine.Flags.Contains(a)).ToArray());
@@ -83,6 +84,7 @@ app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
 var data = app.MapGroup("/api").RequireAuthorization();
 data.MapSubjects();
 data.MapAssignments();
+data.MapTokens();
 
 await app.Services.GetRequiredService<ReminderSender>().RecoverAsync(CancellationToken.None);
 app.Run();

@@ -31,6 +31,21 @@ public class Assignment
 
 public class ApplicationUser : IdentityUser;
 
+/// <summary>Токен доступа к <c>/api/v1</c>. Сам токен не хранится: только SHA-256 и первые 8 символов для списка.</summary>
+public class ApiToken
+{
+    public int Id { get; set; }
+    public required string OwnerId { get; set; }
+    public required string Name { get; set; }
+    public required string Hash { get; set; }
+    public required string Prefix { get; set; }
+    public int Scopes { get; set; }
+    public long CreatedAt { get; set; }
+    public long ExpiresAt { get; set; }
+    public long? LastUsedAt { get; set; }
+    public long? RevokedAt { get; set; }
+}
+
 public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Subject> Subjects => Set<Subject>();
@@ -40,12 +55,16 @@ public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<
     public DbSet<TelegramLinkCode> TelegramLinkCodes => Set<TelegramLinkCode>();
     public DbSet<TelegramUpdateState> TelegramUpdateStates => Set<TelegramUpdateState>();
     public DbSet<ReminderDelivery> ReminderDeliveries => Set<ReminderDelivery>();
+    public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
         NotificationModel.Configure(model);
         model.Entity<ApplicationUser>().HasIndex(u => u.NormalizedEmail).IsUnique();
+        model.Entity<ApiToken>().HasIndex(t => t.Hash).IsUnique();
+        model.Entity<ApiToken>().HasIndex(t => t.OwnerId);
+        model.Entity<ApiToken>().HasOne<ApplicationUser>().WithMany().HasForeignKey(t => t.OwnerId).OnDelete(DeleteBehavior.Cascade);
         model.Entity<Subject>().HasIndex(s => new { s.OwnerId, s.NameKey }).IsUnique();
         model.Entity<Subject>().HasOne<ApplicationUser>().WithMany().HasForeignKey(s => s.OwnerId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Assignment>().HasOne<ApplicationUser>().WithMany().HasForeignKey(a => a.OwnerId).OnDelete(DeleteBehavior.Restrict);
