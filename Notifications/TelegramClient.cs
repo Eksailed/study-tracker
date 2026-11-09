@@ -8,12 +8,14 @@ public record TelegramResult(int Code, JsonElement Data, int RetryAfter = 0)
     public bool Success => Code == 200;
 }
 
+public delegate HttpMessageHandler TelegramHandlerFactory();
+
 // Собственные долгоживущие клиенты не подключают журналирование URL HttpClientFactory:
 // адрес Telegram содержит секрет бота. Исключения и ответы наружу не передаются.
 public sealed class TelegramClient : IDisposable
 {
-    private readonly HttpClient send = new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(10) };
-    private readonly HttpClient poll = new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(40) };
+    private readonly HttpClient send;
+    private readonly HttpClient poll;
     private readonly TelegramOptions options;
     private readonly Uri apiBase;
     public long BotId { get; private set; }
@@ -21,9 +23,11 @@ public sealed class TelegramClient : IDisposable
     public bool Ready { get; private set; }
     public string Status { get; private set; } = "Бот не настроен.";
 
-    public TelegramClient(TelegramOptions options, IWebHostEnvironment environment)
+    public TelegramClient(TelegramOptions options, IWebHostEnvironment environment, TelegramHandlerFactory createHandler)
     {
         this.options = options;
+        send = new(createHandler()) { Timeout = TimeSpan.FromSeconds(options.SendTimeoutSeconds) };
+        poll = new(createHandler()) { Timeout = TimeSpan.FromSeconds(options.PollTimeoutSeconds) };
         apiBase = environment.IsDevelopment() && options.ApiBase is not null
             ? new Uri(options.ApiBase.TrimEnd('/') + "/") : new Uri("https://api.telegram.org/");
         if (options.Configured) Status = "Проверяем подключение к Telegram.";

@@ -17,6 +17,7 @@ public static class NotificationServices
         TimeProvider clock = builder.Environment.IsDevelopment() && fixedValue is not null
             ? new NotificationClock(DateTimeOffset.Parse(fixedValue, CultureInfo.InvariantCulture)) : TimeProvider.System;
         builder.Services.AddSingleton(clock);
+        builder.Services.AddSingleton<TelegramHandlerFactory>(() => new SocketsHttpHandler { AllowAutoRedirect = false });
         builder.Services.AddSingleton<TelegramClient>();
         builder.Services.AddSingleton<TelegramUpdateWorker>();
         builder.Services.AddSingleton<ReminderPlanner>();
