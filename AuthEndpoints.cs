@@ -98,10 +98,15 @@ public static class AuthEndpoints
         }).RequireRateLimiting("accounts");
 
         app.MapGet("/api/auth/me", async (System.Security.Claims.ClaimsPrincipal principal,
-            UserManager<ApplicationUser> users) =>
+            UserManager<ApplicationUser> users, TrackerDb db) =>
         {
             var user = await users.GetUserAsync(principal);
-            return user is null ? Results.Unauthorized() : Results.Ok(new { user.Id, user.Email });
+            if (user is null) return Results.Unauthorized();
+            var access = await GroupAccess.LoadAsync(db, principal);
+            var group = access.Membership is { } m
+                ? new { id = m.GroupId, name = m.GroupName, role = m.Role.ToString(), status = m.Status.ToString() }
+                : null;
+            return Results.Ok(new { user.Id, user.Email, user.IsOwner, group });
         }).RequireAuthorization();
 
         app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signIn) =>

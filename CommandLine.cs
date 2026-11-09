@@ -60,6 +60,22 @@ public static class CommandLine
             }
             return true;
         }
+        if (args.Contains("--make-owner"))
+        {
+            try
+            {
+                var index = Array.IndexOf(args, "--make-owner");
+                if (index + 1 >= args.Length) throw new InvalidOperationException("Укажите почту после --make-owner.");
+                await AccountCommands.MakeOwnerAsync(app.Services, args[index + 1]);
+                Console.WriteLine("Аккаунт теперь владелец.");
+            }
+            catch (InvalidOperationException error)
+            {
+                Console.Error.WriteLine(error.Message);
+                Environment.ExitCode = 1;
+            }
+            return true;
+        }
         if (args.Contains("--import-legacy"))
         {
             try

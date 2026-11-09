@@ -34,4 +34,16 @@ public static class AccountCommands
         if (!result.Succeeded) throw new InvalidOperationException("Аккаунт не создан: проверьте адрес и отсутствие повторной регистрации.");
         Console.WriteLine("Аккаунт создан. Регистрация через браузер остаётся в прежнем режиме.");
     }
+
+    /// <summary>Делает аккаунт владельцем: он заводит группы и назначает старост. Повтор безвреден.</summary>
+    public static async Task MakeOwnerAsync(IServiceProvider services, string email)
+    {
+        using var scope = services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await users.FindByEmailAsync(email.Trim()) ?? throw new InvalidOperationException("Аккаунт не найден.");
+        if (user.IsOwner) return;
+        user.IsOwner = true;
+        var result = await users.UpdateAsync(user);
+        if (!result.Succeeded) throw new InvalidOperationException("Не удалось сделать аккаунт владельцем.");
+    }
 }
