@@ -68,6 +68,31 @@ public partial class DesignTests
     }
 
     [Fact]
+    public async Task IndexHasFloatingAddButton()
+    {
+        await using var factory = new TrackerFactory();
+        using var http = factory.CreateClient();
+
+        var index = await http.GetStringAsync("/");
+
+        Assert.Matches(@"<button[^>]*class=""[^""]*\bfab\b[^""]*""[^>]*id=""add-assignment""|<button[^>]*id=""add-assignment""[^>]*class=""[^""]*\bfab\b", index);
+        Assert.Contains("id=\"group-card\"", index);
+        Assert.Contains("id=\"group-card-open\"", index);
+    }
+
+    [Fact]
+    public async Task AppScriptWritesRingThroughStyleObject()
+    {
+        await using var factory = new TrackerFactory();
+        using var http = factory.CreateClient();
+
+        var code = await http.GetStringAsync("/app.js");
+
+        Assert.Contains("style.strokeDasharray", code);
+        Assert.DoesNotContain("setAttribute('stroke-dasharray'", code);
+    }
+
+    [Fact]
     public async Task ThemeColorIsAccent()
     {
         await using var factory = new TrackerFactory();

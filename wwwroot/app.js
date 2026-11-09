@@ -10,7 +10,7 @@ const today = () => dateKey(new Date());
 const formatDate = key => localDate(key).toLocaleDateString('ru-RU', {day:'numeric', month:'short'});
 const statuses = {Todo:'Нужно сделать', InProgress:'В работе', Done:'Выполнено'};
 const titles = {active:'Мои задания', upcoming:'На этой неделе', done:'Выполненные', all:'Все задания', overdue:'Срок прошёл'};
-const state = {subjects:[], assignments:[], view:'active', subject:null, status:'any', scope:'all', query:'', sort:'due', date:null};
+const state = {subjects:[], assignments:[], view:'active', subject:null, status:'any', scope:'all', query:'', sort:'due', date:null, justDone:null};
 const scopeNames = {personal:'Только личные', group:'Только группа'};
 let csrfToken;
 let editingId = null;
@@ -133,6 +133,7 @@ function render() {
   });
   $('.tabs').hidden = state.view === 'done';
   renderScope();
+  renderGroupCard();
   renderSubjects(active);
   renderAssignments(week);
   renderPlanning(active,done,week);
@@ -145,18 +146,35 @@ function renderScope() {
   $$('[data-scope]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.scope === state.scope)));
 }
 
+function renderGroupCard() {
+  const group = myGroupId() !== null ? currentUser.group : null;
+  $('#group-card').hidden = !group;
+  if (!group) return;
+  $('#group-card-name').textContent = group.name;
+  $('#group-card-role').textContent = group.role === 'Head' ? 'Староста' : 'Студент';
+}
+
 function renderSubjects(active) {
-  $('#subjects').innerHTML = state.subjects.length ? state.subjects.map(subject => `
-    <div class="subject-row ${state.subject === subject.id ? 'selected' : ''}">
-      <button class="subject-link ${subject.color}" data-subject="${subject.id}" aria-pressed="${state.subject === subject.id}">
+  $('#subjects').innerHTML = state.subjects.map(subject => `
+    <div class="subject-chip ${subject.color} ${state.subject === subject.id ? 'selected' : ''}">
+      <button class="subject-link" data-subject="${subject.id}" aria-pressed="${state.subject === subject.id}">
         <span class="subject-dot"></span><span class="subject-name">${escapeHtml(subject.name)}</span>${subject.groupId != null ? `<span class="group-mark" title="Предмет группы">${icon('users')}<span class="visually-hidden">группа</span></span>` : ''}
         <span class="subject-number">${active.filter(a => a.subjectId === subject.id).length}</span>
       </button>
-      ${canLead(subject) ? `<button class="icon-button" data-delete-subject="${subject.id}" aria-label="Удалить предмет ${escapeHtml(subject.name)}">${icon('trash')}</button>` : ''}
-    </div>`).join('') : '<p class="sidebar-empty">Добавь первый предмет<br>с помощью кнопки «+».</p>';
+      ${canLead(subject) ? `<button class="icon-button chip-delete" data-delete-subject="${subject.id}" aria-label="Удалить предмет ${escapeHtml(subject.name)}">${icon('trash')}</button>` : ''}
+    </div>`).join('');
+}
+
+/** Значок предмета на карточке: инициалы слов (до трёх) или первые буквы единственного слова. */
+function subjectBadge(name) {
+  const words = name.match(/[\p{L}\p{N}]+/gu) || [];
+  const letters = words.length > 1 ? words.slice(0,3).map(word => Array.from(word)[0]).join('') : Array.from(words[0] || '').slice(0,3).join('');
+  return (letters || '•').toLocaleUpperCase('ru');
 }
 
 function renderAssignments(week) {
+  const justDone = state.justDone;
+  state.justDone = null;
   let tasks = state.assignments.filter(a => {
     if (state.view === 'active' && a.status === 'Done') return false;
     if (state.view === 'done' && a.status !== 'Done') return false;
@@ -195,15 +213,17 @@ function renderAssignments(week) {
   $('#assignment-list').innerHTML = tasks.map(task => {
     const subject = subjectOf(task);
     const isDone = task.status === 'Done';
-    return `<article class="task-row ${isDone ? 'done' : ''}">
-      <button class="task-check" data-toggle="${task.id}" aria-pressed="${isDone}" aria-label="${isDone ? 'Вернуть в работу' : 'Отметить выполненным'}: ${escapeHtml(task.title)}">${icon('check')}</button>
+    const overdue = !isDone && task.dueDate < today();
+    return `<article class="task-row ${subject.color} ${isDone ? 'done' : ''} ${justDone === task.id ? 'just-done' : ''}">
+      <span class="task-badge" aria-hidden="true">${escapeHtml(subjectBadge(subject.name))}</span>
       <div class="task-main">${canLead(task) ? `<button class="task-title" data-edit="${task.id}">${escapeHtml(task.title)}</button>` : `<span class="task-title readonly">${escapeHtml(task.title)}</span>`}
       ${task.description ? `<p class="task-description">${escapeHtml(task.description)}</p>` : ''}
       <div class="task-meta"><span class="subject-tag ${subject.color}">${escapeHtml(subject.name)}</span>${task.groupId != null ? '<span class="group-tag">Группа</span>' : ''}
-      <span class="due-label ${!isDone && task.dueDate < today() ? 'overdue' : ''}">${icon('calendar')}${deadline(task)}</span>
+      ${overdue ? '<span class="overdue-pill">просрочено</span>' : ''}<span class="due-label">${icon('calendar')}${overdue ? formatDate(task.dueDate) : deadline(task)}</span>
       ${priorityTag(task)}${stepsToggle(task)}
       <span class="status-tag status-${task.status.toLowerCase()}">${statuses[task.status]}</span></div>${stepsBlock(task)}</div>
       ${canLead(task) ? `<div class="task-actions"><button class="icon-button" data-edit="${task.id}" aria-label="Изменить задание ${escapeHtml(task.title)}">${icon('edit')}</button><button class="icon-button" data-delete-task="${task.id}" aria-label="Удалить задание ${escapeHtml(task.title)}">${icon('trash')}</button></div>` : ''}
+      <button class="task-check" data-toggle="${task.id}" aria-pressed="${isDone}" aria-label="${isDone ? 'Вернуть в работу' : 'Отметить выполненным'}: ${escapeHtml(task.title)}">${icon('check')}</button>
     </article>`;
   }).join('');
 }
@@ -218,7 +238,7 @@ function renderPlanning(active,done,week) {
   $('#nearest-task').innerHTML = nearest ? `<p class="nearest-name">${escapeHtml(nearest.title)}</p><div class="nearest-subject">${escapeHtml(subjectOf(nearest).name)}</div><div class="nearest-deadline">${icon('clock')}${deadline(nearest)}</div>` : '<p class="nearest-empty">Пока нет заданий со сроком.<br>Здесь появится самое ближайшее.</p>';
   const percent = state.assignments.length ? Math.round(done/state.assignments.length*100) : 0;
   $('#progress-percent').innerHTML = `${percent}<span>%</span>`;
-  $('#progress-circle').setAttribute('stroke-dasharray',`${percent} ${100-percent}`);
+  $('#progress-circle').style.strokeDasharray = `${percent} ${100-percent}`;
   $('#progress-caption').textContent = !done ? 'Первое выполненное задание — начало прогресса.' : active.length ? `Выполнено ${done} из ${state.assignments.length}. Продолжай в своём темпе.` : 'Все задания выполнены. Время для заслуженного отдыха!';
   $('#legend-done').textContent = done;
   $('#legend-left').textContent = active.length;
@@ -377,8 +397,9 @@ document.addEventListener('click',async event => {
       const status = done ? 'Done' : 'Todo';
       if (task.groupId != null) await api(`assignments/${task.id}/progress`,'PUT',{status});
       else await api(`assignments/${task.id}`,'PUT',{...task,status});
+      if (done) state.justDone = task.id;
       await refreshAfterChange(done ? 'Готово! Ещё на одно задание меньше' : 'Задание возвращено в работу');
-    } catch (error) { notify(error.message || 'Сервер недоступен.',true); button.disabled = false; }
+    } catch (error) { state.justDone = null; notify(error.message || 'Сервер недоступен.',true); button.disabled = false; }
   }
   if (button.dataset.emptyAction === 'reset') resetFilters(true);
   if (button.dataset.emptyAction === 'task') openTask();

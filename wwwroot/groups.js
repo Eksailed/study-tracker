@@ -453,4 +453,5 @@ $('#owner-search').addEventListener('input', event => {
 });
 
 document.addEventListener('account-entered', syncRoleButtons);
-document.addEventListener('account-cleared', () => { clearTimeout(ownerSearchTimer); $('#open-owner').hidden = true; });
+document.addEventListener('account-cleared', () => { clearTimeout(ownerSearchTimer); $('#open-owner').hidden = true; $('#group-card').hidden = true; });
+$('#group-card-open').addEventListener('click', () => $('#open-group').click());

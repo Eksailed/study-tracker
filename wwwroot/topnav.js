@@ -58,10 +58,17 @@ document.addEventListener('keydown', event => {
   setAccountMenu(false);
   accountButton.focus();
 });
+/** Появление главного экрана: класс intro на оболочке запускает «выпрыгивание» карточек и заполнение кольца, через 1,2 с он снимается. */
+let introTimer;
 document.addEventListener('account-entered', () => {
   $('#account-avatar').textContent = ($('#account-email').textContent.trim().charAt(0) || '?').toUpperCase();
+  clearTimeout(introTimer);
+  $('#app-shell').classList.add('intro');
+  introTimer = setTimeout(() => $('#app-shell').classList.remove('intro'), 1200);
 });
 document.addEventListener('account-cleared', () => {
   setAccountMenu(false);
   $('#account-avatar').textContent = '';
+  clearTimeout(introTimer);
+  $('#app-shell').classList.remove('intro');
 });

@@ -80,7 +80,7 @@
     </header>
     <div class="page">
       <main id="main" tabindex="-1">
-        <section class="page-heading"><div><p class="greeting" id="greeting">Хорошего учебного дня</p><h1 id="page-title">Мои задания</h1><time class="today-label" id="today-label"></time><p class="subtitle">Освободи голову. Всё, что нужно сделать, — здесь.</p></div><button class="primary-button" id="add-assignment"><svg class="icon"><use href="#i-plus"/></svg>Добавить задание</button></section>
+        <section class="page-heading"><div><p class="greeting" id="greeting">Хорошего учебного дня</p><h1 id="page-title">Мои задания</h1><time class="today-label" id="today-label"></time><p class="subtitle">Освободи голову. Всё, что нужно сделать, — здесь.</p></div></section>
         <section class="subject-chips" aria-label="Предметы"><div id="subjects" class="subjects"></div><button class="chip-add" id="add-subject" type="button" aria-label="Добавить предмет"><svg class="icon"><use href="#i-plus"/></svg>Предмет</button></section>
         <section class="summary" aria-label="Сводка заданий">
           <button class="summary-item" data-summary="active"><span class="summary-icon blue"><svg class="icon"><use href="#i-book"/></svg></span><span><strong id="stat-active">0</strong><span>Нужно сделать</span></span></button>
@@ -99,11 +99,13 @@
           </section>
           <aside class="right-column" aria-label="Планирование">
             <section class="week-panel"><div class="section-heading"><h2>Эта неделя</h2><svg class="icon"><use href="#i-calendar"/></svg></div><p id="week-range" class="muted"></p><div class="week-days" id="week-days"></div><div class="nearest-heading">Ближайший срок</div><div id="nearest-task"></div></section>
-            <section class="progress-panel"><div class="section-heading"><h2>Твой прогресс</h2><span class="progress-symbol">✧</span></div><div class="progress-visual"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="progress-track" cx="60" cy="60" r="49"/><circle id="progress-circle" class="progress-fill" cx="60" cy="60" r="49" pathLength="100" stroke-dasharray="0 100"/></svg><strong id="progress-percent">0<span>%</span></strong></div><p id="progress-caption">Первое выполненное задание — начало прогресса.</p><div class="progress-legend"><span><i class="legend-dot teal"></i>Готово <b id="legend-done">0</b></span><span><i class="legend-dot pale"></i>Осталось <b id="legend-left">0</b></span></div></section>
+            <section class="progress-panel"><div class="section-heading"><h2>Твой прогресс</h2><span class="progress-symbol">✧</span></div><div class="progress-visual"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6c47ff"/><stop offset="1" stop-color="#ff6fb1"/></linearGradient></defs><circle class="progress-track" cx="60" cy="60" r="49"/><circle id="progress-circle" class="progress-fill" cx="60" cy="60" r="49" pathLength="100" stroke-dasharray="0 100"/></svg><strong id="progress-percent">0<span>%</span></strong></div><p id="progress-caption">Первое выполненное задание — начало прогресса.</p><div class="progress-legend"><span><i class="legend-dot teal"></i>Готово <b id="legend-done">0</b></span><span><i class="legend-dot pale"></i>Осталось <b id="legend-left">0</b></span></div></section>
+            <section class="group-card" id="group-card" aria-label="Моя группа" hidden><span class="group-card-icon" aria-hidden="true"><svg class="icon"><use href="#i-users"/></svg></span><div class="group-card-text"><h2 id="group-card-name"></h2><p id="group-card-role"></p></div><button class="group-card-button" id="group-card-open" type="button">Открыть группу</button></section>
             <div class="quiet-note"><span>✦</span><p>Не обязательно сделать всё сегодня.<br>Начни с самого важного.</p></div>
           </aside>
         </div>
         <footer class="page-footer">Зачёт <span>Меньше хаоса. Больше свободного времени.</span></footer>
+        <button class="fab" id="add-assignment" type="button"><svg class="icon"><use href="#i-plus"/></svg><span class="visually-hidden">Добавить задание</span></button>
       </main>
     </div>
   </div>
