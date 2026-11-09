@@ -28,6 +28,10 @@ public static class ApiDocs
                     Scheme = "bearer",
                     Description = "Токен доступа вида zt_…, выпущенный в интерфейсе.",
                 };
+                // Одни и те же типы служат и интерфейсу, где группы есть, и токену, где их нет.
+                foreach (var schema in document.Components.Schemas?.Values.OfType<OpenApiSchema>() ?? [])
+                    if (schema.Properties?.TryGetValue("groupId", out var groupId) == true && groupId is OpenApiSchema property)
+                        property.Description = "Группы в токене API не поддерживаются: в запросе поле запрещено (ответ `400`), в ответе всегда `null`.";
                 return Task.CompletedTask;
             });
             options.AddOperationTransformer((operation, context, _) =>

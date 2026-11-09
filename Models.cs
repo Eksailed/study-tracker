@@ -136,9 +136,10 @@ public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<
     }
 }
 
-public record SubjectInput(string? Name, string? Color);
+public record SubjectInput(string? Name, string? Color, int? GroupId = null);
 public record AssignmentInput(string? Title, string? Description, int SubjectId,
-    DateOnly DueDate, AssignmentStatus Status, AssignmentPriority? Priority = null);
+    DateOnly DueDate, AssignmentStatus Status, AssignmentPriority? Priority = null, int? GroupId = null);
+public record ProgressInput(AssignmentStatus? Status);
 
 public record SubtaskInput(string? Title, bool? Done);
 public record SubtaskOrder(int[]? Ids);

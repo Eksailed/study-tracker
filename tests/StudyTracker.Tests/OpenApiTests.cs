@@ -87,6 +87,24 @@ public class OpenApiTests
     }
 
     [Fact]
+    public async Task OpenApiSaysGroupsAreNotSupported()
+    {
+        await using var factory = new TrackerFactory();
+        var document = await Document(factory.NewClient());
+
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+        var described = 0;
+        foreach (var schema in schemas.EnumerateObject())
+        {
+            if (!schema.Value.TryGetProperty("properties", out var properties) || !properties.TryGetProperty("groupId", out var groupId)) continue;
+            Assert.Contains("не поддерживаются", groupId.GetProperty("description").GetString());
+            described++;
+        }
+        Assert.True(described >= 2, "groupId должен быть описан в схемах предмета и задания");
+        Assert.DoesNotContain("/progress", document.GetRawText());
+    }
+
+    [Fact]
     public async Task DocsPageIsPublicAndStrict()
     {
         await using var factory = new TrackerFactory();
