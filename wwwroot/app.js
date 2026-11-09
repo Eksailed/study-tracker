@@ -36,7 +36,7 @@ function weekDates() {
 
 async function api(path, method='GET', data) {
   const generation = sessionGeneration;
-  const personalPath = ['assignments','subjects','notifications','tokens','import'].some(prefix=>path.startsWith(prefix));
+  const personalPath = ['assignments','subjects','notifications','tokens','import','calendar'].some(prefix=>path.startsWith(prefix));
   const response = await fetch(`/api/${path}`, {
     method, credentials:'same-origin',
     headers:method === 'GET' ? {} : {'Content-Type':'application/json', 'X-CSRF-TOKEN':csrfToken},

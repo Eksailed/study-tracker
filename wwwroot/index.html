@@ -14,6 +14,7 @@
   <script src="/notifications.js" defer></script>
   <script src="/api-access.js" defer></script>
   <script src="/import.js" defer></script>
+  <script src="/calendar.js" defer></script>
   <script src="/pwa.js" defer></script>
 </head>
 <body>
@@ -61,6 +62,7 @@
         <button class="nav-item" id="open-notifications"><svg class="icon"><use href="#i-bell"/></svg>Уведомления</button>
         <button class="nav-item" id="open-tokens"><svg class="icon"><use href="#i-key"/></svg>Доступ к API</button>
         <button class="nav-item" id="open-import"><svg class="icon"><use href="#i-upload"/></svg>Импорт из Obsidian</button>
+        <button class="nav-item" id="open-calendar"><svg class="icon"><use href="#i-calendar"/></svg>Календарь</button>
       </nav>
       <div class="subjects-heading"><h2>Предметы</h2><button class="icon-button" id="add-subject" aria-label="Добавить предмет"><svg class="icon"><use href="#i-plus"/></svg></button></div>
       <div id="subjects" class="subjects"></div>
@@ -162,6 +164,19 @@
     <section id="import-skipped-section" class="import-section" hidden><h3>Пропущено</h3><ul id="import-skipped" class="import-list" tabindex="0" aria-label="Список пропущенных заметок"></ul></section>
     <p id="import-problem" class="form-error" role="alert"></p>
     <div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Закрыть</button><button id="import-apply" class="primary-button" type="button" disabled>Добавить</button></div>
+  </dialog>
+  <dialog id="calendar-dialog" aria-labelledby="calendar-title">
+    <div class="dialog-heading"><div><h2 id="calendar-title">Календарь</h2><p class="notification-intro">Сроки невыполненных заданий в календаре телефона или компьютера. Календарь только читает ленту и ничего не записывает в «Зачёт».</p></div><button class="icon-button close-dialog" type="button" aria-label="Закрыть календарь"><svg class="icon"><use href="#i-close"/></svg></button></div>
+    <p id="calendar-state" class="calendar-state" aria-live="polite">Загружаем…</p>
+    <section id="calendar-issued" class="token-issued" aria-label="Новая ссылка" hidden>
+      <h3>Ссылка готова</h3>
+      <p class="notification-help"><strong>Ссылка показывается один раз.</strong> Скопируй её и вставь в календарь как подписку по адресу. Потеряешь — перевыпусти: старая перестанет работать.</p>
+      <div class="token-copy"><input id="calendar-url" type="text" readonly aria-label="Ссылка на ленту" autocomplete="off" spellcheck="false"><button id="calendar-copy" class="secondary-button" type="button">Скопировать</button></div>
+    </section>
+    <p class="notification-help">Google Календарь: «Другие календари» → «Добавить по URL». Apple Календарь: «Файл» → «Новая подписка на календарь». Outlook: «Добавить календарь» → «Подписаться из Интернета». Чтобы лента открылась из интернета, «Зачёт» должен быть доступен снаружи по HTTPS. Не показывай ссылку другим людям: по ней видны твои задания.</p>
+    <section id="calendar-confirm" class="calendar-confirm" aria-label="Подтверждение" hidden><p>Старая ссылка перестанет работать, календари с ней перестанут обновляться. Перевыпустить?</p><div class="dialog-actions"><button id="calendar-confirm-no" class="secondary-button" type="button">Отмена</button><button id="calendar-confirm-yes" class="primary-button" type="button">Перевыпустить</button></div></section>
+    <p id="calendar-problem" class="form-error" role="alert"></p>
+    <div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Закрыть</button><button id="calendar-disable" class="secondary-button" type="button" hidden>Выключить ленту</button><button id="calendar-create" class="primary-button" type="button" hidden>Создать ссылку</button></div>
   </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body>
