@@ -17,6 +17,7 @@
   <script src="/calendar.js" defer></script>
   <script src="/groups.js" defer></script>
   <script src="/subtasks.js" defer></script>
+  <script src="/topnav.js" defer></script>
   <script src="/pwa.js" defer></script>
 </head>
 <body>
@@ -37,6 +38,7 @@
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10 4 2 18a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3L14 4a2 2 0 0 0-4 0zM12 9v4M12 17h.01"/></symbol>
     <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3M14 9l2 2"/></symbol>
     <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M16 8l4 4-4 4M20 12H9"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
   </svg>
   <a class="skip-link" href="#main" hidden>К заданиям</a>
@@ -54,10 +56,8 @@
     </div>
   </section>
   <div class="app-shell" id="app-shell" hidden>
-    <aside class="sidebar" aria-label="Навигация">
-      <a class="brand" href="/" aria-label="Зачёт — главная"><span class="brand-mark">з<span>✓</span></span>зачёт<span class="brand-dot">.</span></a>
-      <div class="workspace"><span class="workspace-avatar">Я</span><div><strong>Моя учёба</strong><span>Личное пространство</span></div></div>
-      <div class="account-bar"><span id="account-email"></span><button class="text-button" id="logout" type="button">Выйти</button></div>
+    <header class="top">
+      <a class="brand" href="/" aria-label="Зачёт — главная">зачёт<span class="brand-dot">.</span></a>
       <nav class="main-nav" aria-label="Разделы">
         <button class="nav-item" id="open-group"><svg class="icon"><use href="#i-users"/></svg>Группа</button>
         <button class="nav-item" id="open-owner" hidden><svg class="icon"><use href="#i-shield"/></svg>Владелец</button>
@@ -66,19 +66,22 @@
         <button class="nav-item" data-view="done"><svg class="icon"><use href="#i-check"/></svg>Выполненные</button>
         <button class="nav-item" data-view="all"><svg class="icon"><use href="#i-book"/></svg>Все задания</button>
         <button class="nav-item" id="open-notifications"><svg class="icon"><use href="#i-bell"/></svg>Уведомления</button>
-        <button class="nav-item" id="open-tokens"><svg class="icon"><use href="#i-key"/></svg>Доступ к API</button>
-        <button class="nav-item" id="open-import"><svg class="icon"><use href="#i-upload"/></svg>Импорт из Obsidian</button>
-        <button class="nav-item" id="open-calendar"><svg class="icon"><use href="#i-calendar"/></svg>Календарь</button>
       </nav>
-      <div class="subjects-heading"><h2>Предметы</h2><button class="icon-button" id="add-subject" aria-label="Добавить предмет"><svg class="icon"><use href="#i-plus"/></svg></button></div>
-      <div id="subjects" class="subjects"></div>
-      <div class="sidebar-note"><svg class="icon"><use href="#i-book"/></svg><p>По одному заданию.<br>В своём темпе.</p><span>Всё получится.</span></div>
-      <div class="sidebar-footer"><span class="connection-dot"></span>Твоё учебное пространство</div>
-    </aside>
+      <div class="account">
+        <button class="account-button" id="account-button" type="button" aria-label="Меню аккаунта" aria-haspopup="true" aria-expanded="false" aria-controls="account-menu"><span id="account-avatar" aria-hidden="true"></span></button>
+        <div class="account-menu" id="account-menu" hidden>
+          <p class="account-email" id="account-email"></p>
+          <button class="menu-item" id="open-calendar" type="button"><svg class="icon"><use href="#i-calendar"/></svg>Календарь</button>
+          <button class="menu-item" id="open-tokens" type="button"><svg class="icon"><use href="#i-key"/></svg>Доступ к API</button>
+          <button class="menu-item" id="open-import" type="button"><svg class="icon"><use href="#i-upload"/></svg>Импорт из Obsidian</button>
+          <button class="menu-item danger" id="logout" type="button"><svg class="icon"><use href="#i-logout"/></svg>Выйти</button>
+        </div>
+      </div>
+    </header>
     <div class="page">
-      <header class="topbar"><span>Моя учёба <span class="breadcrumb-separator">/</span> <strong id="breadcrumb">Мои задания</strong></span><time id="today-label"></time></header>
       <main id="main" tabindex="-1">
-        <section class="page-heading"><div><p class="greeting" id="greeting">Хорошего учебного дня</p><h1 id="page-title">Мои задания</h1><p class="subtitle">Освободи голову. Всё, что нужно сделать, — здесь.</p></div><button class="primary-button" id="add-assignment"><svg class="icon"><use href="#i-plus"/></svg>Добавить задание</button></section>
+        <section class="page-heading"><div><p class="greeting" id="greeting">Хорошего учебного дня</p><h1 id="page-title">Мои задания</h1><time class="today-label" id="today-label"></time><p class="subtitle">Освободи голову. Всё, что нужно сделать, — здесь.</p></div><button class="primary-button" id="add-assignment"><svg class="icon"><use href="#i-plus"/></svg>Добавить задание</button></section>
+        <section class="subject-chips" aria-label="Предметы"><div id="subjects" class="subjects"></div><button class="chip-add" id="add-subject" type="button" aria-label="Добавить предмет"><svg class="icon"><use href="#i-plus"/></svg>Предмет</button></section>
         <section class="summary" aria-label="Сводка заданий">
           <button class="summary-item" data-summary="active"><span class="summary-icon blue"><svg class="icon"><use href="#i-book"/></svg></span><span><strong id="stat-active">0</strong><span>Нужно сделать</span></span></button>
           <button class="summary-item" data-summary="overdue"><span class="summary-icon orange"><svg class="icon"><use href="#i-clock"/></svg></span><span><strong id="stat-overdue">0</strong><span>Срок прошёл</span></span></button>

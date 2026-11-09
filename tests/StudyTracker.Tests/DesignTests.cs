@@ -52,6 +52,22 @@ public partial class DesignTests
     }
 
     [Fact]
+    public async Task IndexHasTopNavigation()
+    {
+        await using var factory = new TrackerFactory();
+        using var http = factory.CreateClient();
+
+        var index = await http.GetStringAsync("/");
+
+        Assert.Contains("class=\"main-nav\"", index);
+        Assert.Contains("id=\"account-button\"", index);
+        Assert.Contains("id=\"account-menu\"", index);
+        Assert.Contains("src=\"/topnav.js\"", index);
+        Assert.DoesNotContain("class=\"sidebar\"", index);
+        Assert.DoesNotContain("id=\"breadcrumb\"", index);
+    }
+
+    [Fact]
     public async Task ThemeColorIsAccent()
     {
         await using var factory = new TrackerFactory();

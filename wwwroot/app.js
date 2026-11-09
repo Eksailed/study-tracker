@@ -122,7 +122,6 @@ function render() {
   $('#stat-week').textContent = inWeek;
   $('#stat-done').textContent = done;
   $('#page-title').textContent = state.subject ? state.subjects.find(s => s.id === state.subject)?.name || titles[state.view] : titles[state.view];
-  $('#breadcrumb').textContent = $('#page-title').textContent;
   $$('[data-view]').forEach(button => {
     const selected = button.dataset.view === state.view;
     button.classList.toggle('selected',selected);
@@ -462,7 +461,7 @@ async function enterAccount(user) {
   $('#auth-screen').hidden = true;
   $('#app-shell').hidden = false;
   $('.skip-link').hidden = false;
-  $('#main').focus();
+  $('#main').focus({preventScroll:true});
   if (savedDraft) $('#draft-dialog').showModal();
 }
 
