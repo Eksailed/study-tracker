@@ -49,6 +49,8 @@ jobs:
           node --check wwwroot/api-docs.js
           node --check wwwroot/api-access.js
           node --check wwwroot/import.js
+          node --check wwwroot/pwa.js
+          node --check wwwroot/sw.js
       - name: Тесты на C#
         run: dotnet test tests/StudyTracker.Tests --nologo
   deployment:
