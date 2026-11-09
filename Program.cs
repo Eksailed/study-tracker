@@ -87,6 +87,7 @@ app.MapNotifications();
 app.MapHealth();
 app.MapApiDocs();
 app.MapCalendarFeed();
+app.MapGuest();
 
 app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
     Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
@@ -99,6 +100,7 @@ data.MapTokens();
 data.MapImport();
 data.MapCalendar();
 data.MapGroups();
+data.MapGuestLink();
 data.MapOwner();
 
 var v1 = app.MapGroup(ApiTokenAuth.V1).RequireAuthorization(ApiTokenAuth.ScopePolicy).RequireRateLimiting(ApiTokenAuth.LimiterPolicy);

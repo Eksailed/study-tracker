@@ -48,6 +48,19 @@ public static class GroupSupport
         return (item.Id, task.Id);
     });
 
+    /// <summary>Много заданий группы одним предметом сразу: заголовок и срок каждого задаются снаружи.</summary>
+    public static void AddGroupTasks(TrackerFactory factory, int groupId, IEnumerable<(string Title, DateOnly Due)> tasks,
+        string subject = "Физика") => factory.Scope(services =>
+    {
+        var db = services.GetRequiredService<TrackerDb>();
+        var item = db.Subjects.SingleOrDefault(s => s.GroupId == groupId && s.NameKey == subject.ToUpperInvariant())
+            ?? db.Subjects.Add(new Subject { Name = subject, NameKey = subject.ToUpperInvariant(), Color = "blue", GroupId = groupId }).Entity;
+        db.SaveChanges();
+        db.Assignments.AddRange(tasks.Select(t => new Assignment { Title = t.Title, SubjectId = item.Id, GroupId = groupId, DueDate = t.Due }));
+        db.SaveChanges();
+        return 0;
+    });
+
     public static void AddProgress(TrackerFactory factory, int assignmentId, string email, AssignmentStatus status) => factory.Scope(services =>
     {
         var db = services.GetRequiredService<TrackerDb>();

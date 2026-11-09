@@ -50,6 +50,7 @@ jobs:
           node --check wwwroot/api-access.js
           node --check wwwroot/import.js
           node --check wwwroot/calendar.js
+          node --check wwwroot/g.js
           node --check wwwroot/subtasks.js
           node --check wwwroot/pwa.js
           node --check wwwroot/sw.js

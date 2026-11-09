@@ -18,7 +18,7 @@ public static class GroupCleanup
 public static class GroupEndpoints
 {
     /// <summary>Группа есть и текущий пользователь её ведёт (староста или владелец); иначе <c>null</c> — отвечаем <c>404</c>.</summary>
-    private static async Task<Access?> ManagerOfAsync(TrackerDb db, ClaimsPrincipal user, int groupId)
+    internal static async Task<Access?> ManagerOfAsync(TrackerDb db, ClaimsPrincipal user, int groupId)
     {
         var access = await GroupAccess.LoadAsync(db, user);
         if (!access.CanManage(groupId) || !await db.Groups.AnyAsync(g => g.Id == groupId)) return null;
