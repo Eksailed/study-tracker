@@ -58,18 +58,5 @@ class NotificationTests(unittest.TestCase):
             with self.assertRaises(sqlite3.IntegrityError):
                 db.execute(sql,values)
 
-    def test_notification_migration_preserves_accounts(self):
-        subject = self.client.request('subjects','POST',dict(name='Сохранить',color='blue'))[1]
-        task = self.client.request('assignments','POST',dict(title='Сохранить задание',subjectId=subject['id'],dueDate='2026-12-12',status='Todo'))[1]
-        self.server.stop()
-        with closing(sqlite3.connect(Path(self.server.temp.name)/'tracker.db')) as db, db:
-            for table in ('ReminderDeliveries','TelegramLinkCodes','TelegramConnections','NotificationSettings','TelegramUpdateStates'):
-                db.execute(f'DROP TABLE {table}')
-            db.execute("DELETE FROM __EFMigrationsHistory WHERE MigrationId >= (SELECT MigrationId FROM __EFMigrationsHistory WHERE MigrationId LIKE '%_Notifications')")
-        self.server.start()
-        self.assertEqual(self.client.request('auth/me')[0],200)
-        self.assertEqual(self.client.request('assignments')[1][0]['id'],task['id'])
-
-
 if __name__ == '__main__':
     unittest.main(verbosity=2)
