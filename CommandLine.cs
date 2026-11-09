@@ -5,7 +5,7 @@ namespace StudyTracker;
 
 public static class CommandLine
 {
-    public static readonly string[] Flags = ["--migrate", "--telegram-poll", "--notifications-tick", "--notifications-plan"];
+    public static readonly string[] Flags = ["--migrate", "--telegram-poll", "--notifications-tick", "--notifications-plan", "--backup", "--restore"];
 
     /// <summary>Выполняет команду из аргументов и возвращает <c>true</c>, если это была команда (тогда сайт не запускается).</summary>
     public static async Task<bool> TryRunAsync(string[] args, WebApplication app)
@@ -38,6 +38,11 @@ public static class CommandLine
             if (await telegram.InitializeAsync(CancellationToken.None))
                 await app.Services.GetRequiredService<TelegramUpdateWorker>().PollAsync(CancellationToken.None, timeout: 0);
             else { Console.Error.WriteLine(telegram.Status); Environment.ExitCode = 1; }
+            return true;
+        }
+        if (args.Contains("--backup"))
+        {
+            Environment.ExitCode = await BackupCommands.RunAsync(args, app.Services, Console.Out, Console.Error);
             return true;
         }
         if (args.Contains("--create-account"))

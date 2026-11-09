@@ -1,0 +1,94 @@
+using Microsoft.Data.Sqlite;
+
+namespace StudyTracker;
+
+/// <summary>Команды <c>--backup</c> и <c>--restore</c>. Копия — онлайн-снимок SQLite плюс папка ключей рядом.</summary>
+public static class BackupCommands
+{
+    /// <summary>
+    /// Создаёт <c>tracker-ГГГГММДД-ЧЧммсс.db</c> и <c>tracker-ГГГГММДД-ЧЧммсс-keys</c> в <paramref name="folder"/> (время UTC),
+    /// проверяет копию и возвращает путь к <c>.db</c>. Если проверка не пройдена, оба результата удаляются.
+    /// </summary>
+    public static async Task<string> BackupAsync(IServiceProvider services, string folder, TimeProvider time,
+        Func<string, Task<string>>? integrity = null)
+    {
+        var paths = services.GetRequiredService<TrackerPaths>();
+        Directory.CreateDirectory(folder);
+        var stamp = time.GetUtcNow().ToString("yyyyMMdd-HHmmss");
+        var target = Path.Combine(folder, $"tracker-{stamp}.db");
+        var keysTarget = Path.Combine(folder, $"tracker-{stamp}-keys");
+        if (File.Exists(target) || Directory.Exists(keysTarget))
+            throw new InvalidOperationException($"Копия {Path.GetFileName(target)} уже есть. Повторите через секунду.");
+        try
+        {
+            await using (var source = new SqliteConnection(new SqliteConnectionStringBuilder
+            { DataSource = Path.Combine(paths.DataDirectory, "tracker.db"), Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString()))
+            await using (var copy = new SqliteConnection(new SqliteConnectionStringBuilder
+            { DataSource = target, Pooling = false }.ToString()))
+            {
+                await source.OpenAsync();
+                await copy.OpenAsync();
+                source.BackupDatabase(copy);
+                await using var mode = copy.CreateCommand();
+                mode.CommandText = "PRAGMA journal_mode = DELETE"; // копия — один файл, без -wal и -shm
+                await mode.ExecuteNonQueryAsync();
+            }
+            CopyDirectory(paths.KeyDirectory, keysTarget);
+            if (await (integrity ?? IntegrityCheck)(target) != "ok")
+                throw new InvalidOperationException("Копия не прошла проверку целостности и удалена. Базу не меняли: повторите команду.");
+            return target;
+        }
+        catch
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(target)) File.Delete(target);
+            if (Directory.Exists(keysTarget)) Directory.Delete(keysTarget, recursive: true);
+            throw;
+        }
+    }
+
+    private static async Task<string> IntegrityCheck(string database)
+    {
+        await using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        { DataSource = database, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA integrity_check";
+        return Convert.ToString(await command.ExecuteScalarAsync()) ?? "";
+    }
+
+    private static void CopyDirectory(string from, string to)
+    {
+        Directory.CreateDirectory(to);
+        foreach (var file in Directory.GetFiles(from)) File.Copy(file, Path.Combine(to, Path.GetFileName(file)));
+        foreach (var directory in Directory.GetDirectories(from))
+            CopyDirectory(directory, Path.Combine(to, Path.GetFileName(directory)));
+    }
+
+    /// <summary>Выполняет <c>--backup</c> и печатает результат; возвращает код выхода (0 или 1).</summary>
+    public static async Task<int> RunAsync(string[] args, IServiceProvider services, TextWriter output, TextWriter error)
+    {
+        try
+        {
+            var folder = Option(args, "--backup", "Укажите папку после --backup.");
+            var database = await BackupAsync(services, folder, services.GetRequiredService<TimeProvider>());
+            output.WriteLine("Копия базы: " + database);
+            output.WriteLine("Копия ключей: " + database[..^".db".Length] + "-keys");
+            return 0;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException
+            or UnauthorizedAccessException or SqliteException)
+        {
+            error.WriteLine(exception.Message);
+            return 1;
+        }
+    }
+
+    private static string Option(string[] args, string name, string message)
+    {
+        var index = Array.IndexOf(args, name);
+        if (index < 0 || index + 1 >= args.Length || args[index + 1].StartsWith("--"))
+            throw new InvalidOperationException(message);
+        return args[index + 1];
+    }
+}
