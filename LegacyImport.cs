@@ -38,7 +38,7 @@ public static class LegacyImport
             {
                 var name = reader.GetString(1).Trim();
                 var color = reader.GetString(2);
-                if (name.Length is < 1 or > 80 || !new[] { "blue", "teal", "purple", "orange", "pink", "slate" }.Contains(color))
+                if (name.Length is < 1 or > 80 || !SubjectEndpoints.Colors.Contains(color))
                     throw new InvalidOperationException("В старой базе некорректный предмет.");
                 var subject = new Subject { Name = name, NameKey = name.ToUpperInvariant(), Color = color, OwnerId = owner.Id };
                 db.Subjects.Add(subject);
