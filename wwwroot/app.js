@@ -154,6 +154,8 @@ function renderAssignments(week) {
   });
   tasks.sort((a,b) => state.sort === 'new' ? b.id-a.id : state.sort === 'subject'
     ? subjectOf(a).name.localeCompare(subjectOf(b).name,'ru') || a.dueDate.localeCompare(b.dueDate)
+    : state.sort === 'priority'
+    ? priorityRank[a.priority]-priorityRank[b.priority] || a.dueDate.localeCompare(b.dueDate) || a.id-b.id
     : a.dueDate.localeCompare(b.dueDate) || a.id-b.id);
   const filtered = Boolean(state.subject || state.date || state.query || state.status !== 'any');
   $('#filter-info').hidden = !filtered;
@@ -182,7 +184,8 @@ function renderAssignments(week) {
       ${task.description ? `<p class="task-description">${escapeHtml(task.description)}</p>` : ''}
       <div class="task-meta"><span class="subject-tag ${subject.color}">${escapeHtml(subject.name)}</span>
       <span class="due-label ${!isDone && task.dueDate < today() ? 'overdue' : ''}">${icon('calendar')}${deadline(task)}</span>
-      <span class="status-tag status-${task.status.toLowerCase()}">${statuses[task.status]}</span></div></div>
+      ${priorityTag(task)}${stepsToggle(task)}
+      <span class="status-tag status-${task.status.toLowerCase()}">${statuses[task.status]}</span></div>${stepsBlock(task)}</div>
       <div class="task-actions"><button class="icon-button" data-edit="${task.id}" aria-label="Изменить задание ${escapeHtml(task.title)}">${icon('edit')}</button><button class="icon-button" data-delete-task="${task.id}" aria-label="Удалить задание ${escapeHtml(task.title)}">${icon('trash')}</button></div>
     </article>`;
   }).join('');
@@ -231,6 +234,7 @@ function openTask(id=null) {
   form.elements.subjectId.value = task?.subjectId || state.subject || state.subjects[0].id;
   form.elements.dueDate.value = task?.dueDate || state.date || today();
   form.elements.status.value = task?.status || 'Todo';
+  form.elements.priority.value = task?.priority || 'Normal';
   $('#task-dialog').showModal();
 }
 
@@ -263,7 +267,7 @@ $('#task-form').addEventListener('submit',event => submitForm(event,async form =
   const data = new FormData(form);
   await api(editingId ? `assignments/${editingId}` : 'assignments',editingId ? 'PUT' : 'POST',{
     title:data.get('title'),description:data.get('description'),subjectId:Number(data.get('subjectId')),
-    dueDate:data.get('dueDate'),status:data.get('status')
+    dueDate:data.get('dueDate'),status:data.get('status'),priority:data.get('priority')
   });
   $('#task-dialog').close();
   await refreshAfterChange(editingId ? 'Задание обновлено' : 'Задание добавлено');

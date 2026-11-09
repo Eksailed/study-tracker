@@ -15,6 +15,7 @@
   <script src="/api-access.js" defer></script>
   <script src="/import.js" defer></script>
   <script src="/calendar.js" defer></script>
+  <script src="/subtasks.js" defer></script>
   <script src="/pwa.js" defer></script>
 </head>
 <body>
@@ -82,7 +83,7 @@
         <div class="content-grid">
           <section class="assignment-panel" aria-label="Задания">
             <div class="panel-toolbar"><div class="tabs" aria-label="Фильтр по статусу"><button class="tab active" data-status="any">Все</button><button class="tab" data-status="Todo">Нужно сделать</button><button class="tab" data-status="InProgress">В работе</button></div><label class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Найти задание" aria-label="Поиск заданий" maxlength="140"></label></div>
-            <div class="list-heading"><span id="list-caption">Твои задания</span><label class="sort-label">Порядок<select id="sort" aria-label="Порядок заданий"><option value="due">Сначала ближайшие</option><option value="new">Сначала новые</option><option value="subject">По предмету</option></select></label></div>
+            <div class="list-heading"><span id="list-caption">Твои задания</span><label class="sort-label">Порядок<select id="sort" aria-label="Порядок заданий"><option value="due">Сначала ближайшие</option><option value="new">Сначала новые</option><option value="subject">По предмету</option><option value="priority">По важности</option></select></label></div>
             <div id="filter-info" class="filter-info" hidden><span id="filter-caption"></span><button id="clear-filters" class="text-button">Сбросить фильтры</button></div>
             <div id="assignment-list" aria-live="polite"><p class="loading">Загружаем задания…</p></div>
             <div class="list-footer"><span id="list-total">Пока нет заданий</span><span>Большие цели начинаются с маленьких шагов</span></div>
@@ -101,7 +102,7 @@
     <form id="task-form"><div class="dialog-heading"><h2 id="task-dialog-title">Новое задание</h2><button type="button" class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div>
       <label>Название<input name="title" required maxlength="140" placeholder="Например, подготовить лабораторную № 2"></label>
       <div class="form-row"><label>Предмет<select name="subjectId" required></select></label><label>Сдать до<input name="dueDate" type="date" required min="2000-01-01" max="2100-12-31"></label></div>
-      <label>Статус<select name="status"><option value="Todo">Нужно сделать</option><option value="InProgress">В работе</option><option value="Done">Выполнено</option></select></label>
+      <div class="form-row"><label>Статус<select name="status"><option value="Todo">Нужно сделать</option><option value="InProgress">В работе</option><option value="Done">Выполнено</option></select></label><label>Важность<select name="priority" id="task-priority"><option value="Normal">Обычная</option><option value="Important">Важная</option><option value="Urgent">Срочная</option></select></label></div>
       <label>Описание <span class="optional">необязательно</span><textarea name="description" rows="4" maxlength="2000" placeholder="Что нужно сделать, требования или ссылка на материалы"></textarea></label>
       <p class="form-error" role="alert"></p><div class="dialog-actions"><button class="secondary-button close-dialog" type="button">Отмена</button><button class="primary-button" type="submit">Сохранить задание</button></div>
     </form>
