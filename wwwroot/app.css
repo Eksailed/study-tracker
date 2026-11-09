@@ -13,3 +13,23 @@
 @media(max-width:720px){.app-shell{grid-template-columns:minmax(0,1fr)}.sidebar{min-width:0}.right-column{grid-template-columns:repeat(2,minmax(0,1fr))}.week-panel,.progress-panel{min-width:0}}
 @media(max-width:460px){.right-column{grid-template-columns:minmax(0,1fr)}.week-panel,.progress-panel{padding:21px}.progress-panel>p{font-size:11px}.week-day{font-size:11px}.week-day strong{font-size:13px}.week-days{gap:4px}}
 @media(prefers-reduced-motion:no-preference){dialog[open]{animation:appear .15s ease-out}@keyframes appear{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}}
+#tokens-dialog{width:min(650px,calc(100% - 28px))}
+.token-heading{font-size:14px;margin:0 0 10px}
+.token-issued{background:#e6f5f0;border:1px solid #bfe5da;border-radius:10px;padding:16px;margin-bottom:22px}
+.token-issued h3{font-size:14px;margin:0 0 4px}
+.token-copy{display:flex;gap:8px;align-items:center}
+.token-copy input{font-family:Consolas,"Cascadia Mono",monospace;font-size:12px}
+.token-list{display:grid;gap:10px;margin-bottom:14px}
+.token-item{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.token-item.inactive{opacity:.65}
+.token-item strong{font-size:13px;overflow-wrap:anywhere}
+.token-item p{font-size:11px;color:var(--muted);line-height:1.7;margin:2px 0 0;overflow-wrap:anywhere}
+.token-item code{font-family:Consolas,"Cascadia Mono",monospace}
+.token-state{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:99px;background:#e6f5f0;color:var(--teal);font-size:10px;font-weight:700}
+.token-state.off{background:#edf0f5;color:var(--slate)}
+.token-form fieldset{border:0;padding:0;margin:0 0 6px}
+.token-form legend{font-size:14px;font-weight:700;margin-bottom:12px;padding:0}
+.token-form label:not(.notification-check){display:block;font-size:12px;font-weight:600;margin:14px 0 8px}
+.token-scopes{display:flex;gap:22px;flex-wrap:wrap;margin:16px 0 0}
+.token-scopes .notification-check{margin:0}
+@media(max-width:560px){.token-item{flex-direction:column}.token-copy{flex-direction:column;align-items:stretch}}

@@ -36,7 +36,7 @@ function weekDates() {
 
 async function api(path, method='GET', data) {
   const generation = sessionGeneration;
-  const personalPath = ['assignments','subjects','notifications'].some(prefix=>path.startsWith(prefix));
+  const personalPath = ['assignments','subjects','notifications','tokens'].some(prefix=>path.startsWith(prefix));
   const response = await fetch(`/api/${path}`, {
     method, credentials:'same-origin',
     headers:method === 'GET' ? {} : {'Content-Type':'application/json', 'X-CSRF-TOKEN':csrfToken},
@@ -235,11 +235,14 @@ function openTask(id=null) {
 }
 
 function confirmDelete(kind,id) {
-  const record = (kind === 'task' ? state.assignments : state.subjects).find(a => a.id === id);
+  const record = (kind === 'task' ? state.assignments : kind === 'token' ? apiTokens : state.subjects).find(a => a.id === id);
   if (!record) return;
   deleting = {kind,id};
-  $('#confirm-title').textContent = kind === 'task' ? 'Удалить задание?' : 'Удалить предмет?';
-  $('#confirm-message').textContent = `«${record.title || record.name}» будет удалён${kind === 'task' ? 'о' : ''}. Отменить это действие не получится.`;
+  $('.danger-button',$('#confirm-form')).textContent = kind === 'token' ? 'Отозвать' : 'Удалить';
+  $('#confirm-title').textContent = kind === 'task' ? 'Удалить задание?' : kind === 'token' ? 'Отозвать токен?' : 'Удалить предмет?';
+  $('#confirm-message').textContent = kind === 'token'
+    ? `Токен «${record.name}» перестанет работать сразу. Отменить это действие не получится.`
+    : `«${record.title || record.name}» будет удалён${kind === 'task' ? 'о' : ''}. Отменить это действие не получится.`;
   $('.form-error',$('#confirm-form')).textContent = '';
   $('#confirm-dialog').showModal();
 }
@@ -280,6 +283,13 @@ $('#subject-form').addEventListener('submit',event => submitForm(event,async for
 
 $('#confirm-form').addEventListener('submit',event => submitForm(event,async () => {
   if (!deleting) return;
+  if (deleting.kind === 'token') {
+    await api(`tokens/${deleting.id}`,'DELETE');
+    $('#confirm-dialog').close();
+    deleting = null;
+    await afterTokenRevoked();
+    return;
+  }
   await api(`${deleting.kind === 'task' ? 'assignments' : 'subjects'}/${deleting.id}`,'DELETE');
   if (deleting.kind === 'subject' && state.subject === deleting.id) state.subject = null;
   $('#confirm-dialog').close();
