@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#224bce">
+  <title>Зачёт — документация API</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/api-docs.css">
+  <script src="/api-docs.js" defer></script>
+</head>
+<body>
+  <header class="docs-header">
+    <a class="docs-back" href="/">← В «Зачёт»</a>
+    <h1 id="docs-title">Документация API</h1>
+    <p id="docs-description" class="docs-lead">Загружаем описание…</p>
+  </header>
+  <main id="docs-main" class="docs-main" aria-live="polite">
+    <section class="docs-block" aria-labelledby="docs-auth-title">
+      <h2 id="docs-auth-title">Как войти</h2>
+      <p>Токен выпускается в разделе «Доступ к API» в приложении и показывается один раз. Передавайте его в заголовке <code>Authorization</code>. Токен работает только на адресах <code>/api/v1</code>.</p>
+      <pre class="docs-code">curl -H "Authorization: Bearer zt_…" <span class="docs-origin"></span>/api/v1/subjects</pre>
+    </section>
+    <p id="docs-error" class="docs-error" role="alert" hidden></p>
+  </main>
+</body>
+</html>

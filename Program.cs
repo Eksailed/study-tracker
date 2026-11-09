@@ -43,6 +43,7 @@ builder.Services.AddProblemDetails();
 builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 builder.Services.AddTrackerAccounts(builder.Environment);
 builder.AddNotifications();
+builder.Services.AddApiDocs();
 
 var app = builder.Build();
 app.UseRequestLogging();
@@ -77,6 +78,7 @@ app.UseStaticFiles();
 app.MapTrackerAccounts();
 app.MapNotifications();
 app.MapHealth();
+app.MapApiDocs();
 
 app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
     Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
