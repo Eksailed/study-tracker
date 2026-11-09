@@ -9,15 +9,13 @@ public sealed class FakeReply
     public string Body { get; private init; } = "";
     public bool Fails { get; private init; }
 
-    public static FakeReply Error(int code, int? retryAfter = null) => new()
+    public static FakeReply Error(int code, int? retryAfter = null)
     {
-        Status = code,
-        Body = JsonSerializer.Serialize(new
-        {
-            ok = false, error_code = code, description = "error",
-            parameters = retryAfter is null ? null : new { retry_after = retryAfter },
-        }),
-    };
+        // Как настоящий Bot API: поля parameters нет, пока Telegram не просит подождать.
+        var body = new Dictionary<string, object> { ["ok"] = false, ["error_code"] = code, ["description"] = "error" };
+        if (retryAfter is not null) body["parameters"] = new { retry_after = retryAfter };
+        return new() { Status = code, Body = JsonSerializer.Serialize(body) };
+    }
 
     public static FakeReply NetworkFailure => new() { Fails = true };
 }
