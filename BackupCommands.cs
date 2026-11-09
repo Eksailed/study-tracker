@@ -5,6 +5,9 @@ namespace StudyTracker;
 /// <summary>Команды <c>--backup</c> и <c>--restore</c>. Копия — онлайн-снимок SQLite плюс папка ключей рядом.</summary>
 public static class BackupCommands
 {
+    private const int BusyAttempts = 20;
+    private static readonly TimeSpan BusyPause = TimeSpan.FromMilliseconds(500);
+
     /// <summary>
     /// Создаёт <c>tracker-ГГГГММДД-ЧЧммсс.db</c> и <c>tracker-ГГГГММДД-ЧЧммсс-keys</c> в <paramref name="folder"/> (время UTC),
     /// проверяет копию и возвращает путь к <c>.db</c>. Если проверка не пройдена, оба результата удаляются.
@@ -21,18 +24,7 @@ public static class BackupCommands
             throw new InvalidOperationException($"Копия {Path.GetFileName(target)} уже есть. Повторите через секунду.");
         try
         {
-            await using (var source = new SqliteConnection(new SqliteConnectionStringBuilder
-            { DataSource = Path.Combine(paths.DataDirectory, "tracker.db"), Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString()))
-            await using (var copy = new SqliteConnection(new SqliteConnectionStringBuilder
-            { DataSource = target, Pooling = false }.ToString()))
-            {
-                await source.OpenAsync();
-                await copy.OpenAsync();
-                source.BackupDatabase(copy);
-                await using var mode = copy.CreateCommand();
-                mode.CommandText = "PRAGMA journal_mode = DELETE"; // копия — один файл, без -wal и -shm
-                await mode.ExecuteNonQueryAsync();
-            }
+            await CopyDatabaseAsync(Path.Combine(paths.DataDirectory, "tracker.db"), target);
             CopyDirectory(paths.KeyDirectory, keysTarget);
             if (await (integrity ?? IntegrityCheck)(target) != "ok")
                 throw new InvalidOperationException("Копия не прошла проверку целостности и удалена. Базу не меняли: повторите команду.");
@@ -44,6 +36,36 @@ public static class BackupCommands
             if (File.Exists(target)) File.Delete(target);
             if (Directory.Exists(keysTarget)) Directory.Delete(keysTarget, recursive: true);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Онлайн-снимок базы. Если базу в этот момент держат (SQLITE_BUSY или SQLITE_LOCKED: контрольная точка,
+    /// эксклюзивная запись), ждёт и повторяет: до 20 попыток с паузой 0,5 с, то есть не дольше 10 секунд.
+    /// </summary>
+    private static async Task CopyDatabaseAsync(string source, string target)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await using var from = new SqliteConnection(new SqliteConnectionStringBuilder
+                { DataSource = source, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
+                await using var to = new SqliteConnection(new SqliteConnectionStringBuilder
+                { DataSource = target, Pooling = false }.ToString());
+                await from.OpenAsync();
+                await to.OpenAsync();
+                from.BackupDatabase(to);
+                await using var mode = to.CreateCommand();
+                mode.CommandText = "PRAGMA journal_mode = DELETE"; // копия — один файл, без -wal и -shm
+                await mode.ExecuteNonQueryAsync();
+                return;
+            }
+            catch (SqliteException error) when (error.SqliteErrorCode is 5 or 6 && attempt < BusyAttempts)
+            {
+                if (File.Exists(target)) File.Delete(target);
+                await Task.Delay(BusyPause);
+            }
         }
     }
 

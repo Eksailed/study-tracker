@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using StudyTracker.Tests.Support;
 
@@ -292,6 +293,38 @@ public class BackupTests : IDisposable
 
         Assert.Equal(1, code);
         Assert.Contains("Укажите файл копии после --restore", error.ToString());
+    }
+
+    [Fact]
+    public async Task BackupWaitsWhileDatabaseIsBusy()
+    {
+        var data = Path.Combine(restored, "busy");
+        Directory.CreateDirectory(data);
+        var keys = Path.Combine(data, "keys");
+        Directory.CreateDirectory(keys);
+        await File.WriteAllTextAsync(Path.Combine(keys, "key-1.xml"), "<key/>");
+        using (var db = new TrackerDb(new DbContextOptionsBuilder<TrackerDb>().UseSqlite(
+            new SqliteConnectionStringBuilder { DataSource = Path.Combine(data, "tracker.db"), Pooling = false }.ToString()).Options))
+            db.Database.Migrate();
+        // Соединение с эксклюзивной блокировкой: любое другое чтение базы получает SQLITE_BUSY, пока его не закроют.
+        var holder = new SqliteConnection(new SqliteConnectionStringBuilder
+        { DataSource = Path.Combine(data, "tracker.db"), Pooling = false }.ToString());
+        await holder.OpenAsync();
+        await using (var lockCommand = holder.CreateCommand())
+        {
+            lockCommand.CommandText = "PRAGMA locking_mode = EXCLUSIVE; BEGIN EXCLUSIVE; SELECT COUNT(*) FROM Subjects;";
+            await lockCommand.ExecuteNonQueryAsync();
+        }
+        await using var services = new ServiceCollection().AddSingleton(new TrackerPaths(data, keys)).BuildServiceProvider();
+
+        var backup = BackupCommands.BackupAsync(services, folder, new FakeTimeProvider(Moment));
+        await Task.Delay(700);
+        Assert.False(backup.IsCompleted, "Копия не должна закончиться, пока база занята: " + backup.Exception?.GetBaseException().Message);
+        await holder.DisposeAsync();
+        var path = await backup.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal("ok", Scalar(path, "PRAGMA integrity_check"));
+        Assert.Equal("1", Scalar(path, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%_ApiTokens'"));
     }
 
     [Fact]
