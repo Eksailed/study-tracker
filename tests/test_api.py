@@ -101,41 +101,6 @@ class TrackerApiTests(unittest.TestCase):
         self.assertEqual(status, 201, body)
         return body
 
-    def test_task_lifecycle_and_subject_protection(self):
-        subject = self.subject('Базы данных')
-        task = self.task(subject)
-        for status in ('InProgress', 'Done', 'Todo'):
-            task['status'] = status
-            code, task = self.request(f'assignments/{task["id"]}', 'PUT', task)
-            self.assertEqual(code, 200)
-            self.assertEqual(task['status'], status)
-        self.assertEqual(self.request(f'subjects/{subject}', 'DELETE')[0], 409)
-        self.assertEqual(self.request(f'assignments/{task["id"]}', 'DELETE')[0], 204)
-        self.assertEqual(self.request(f'assignments/{task["id"]}', 'DELETE')[0], 404)
-        self.assertEqual(self.request(f'subjects/{subject}', 'DELETE')[0], 204)
-
-    def test_validation_rejects_invalid_assignments(self):
-        subject = self.subject('Математика')
-        valid = dict(title='Задачи', subjectId=subject, dueDate='2026-11-15', status='Todo')
-        for invalid in ({'title': '  '}, {'title': 'a'*141}, {'description': 'a'*2001},
-                        {'dueDate': '1999-01-01'}, {'dueDate': '2101-01-01'},
-                        {'status': 99}, {'dueDate': 'ошибка'}, {'status': 'Unknown'}):
-            with self.subTest(invalid=str(invalid)[:70]):
-                self.assertEqual(self.request('assignments', 'POST', valid | invalid)[0], 400)
-        self.assertEqual(self.request('assignments', 'POST', valid | {'subjectId': 999999})[0], 404)
-
-    def test_subject_validation_and_cyrillic_duplicates(self):
-        self.subject('Программирование')
-        self.assertEqual(self.request('subjects', 'POST', {'name': ' программирование ', 'color': 'teal'})[0], 409)
-        for data in ({'name': '', 'color': 'blue'}, {'name': 'x'*81, 'color': 'blue'},
-                     {'name': 'Химия', 'color': 'red'}, {'name': None, 'color': 'blue'}):
-            self.assertEqual(self.request('subjects', 'POST', data)[0], 400)
-
-    def test_csrf_required_for_all_mutations(self):
-        for path, method, data in [('subjects', 'POST', {'name': 'Тест', 'color': 'blue'}),
-                                   ('assignments/1', 'PUT', {}), ('subjects/1', 'DELETE', None)]:
-            self.assertEqual(self.request(path, method, data, token=False)[0], 400)
-
     def test_data_survives_restart(self):
         subject = self.subject('Физика')
         task = self.task(subject, status='InProgress', description='Сохранить после перезапуска')
@@ -146,22 +111,6 @@ class TrackerApiTests(unittest.TestCase):
         stored = next(a for a in tasks if a['id'] == task['id'])
         self.assertEqual(stored['status'], 'InProgress')
         self.assertEqual(stored['description'], 'Сохранить после перезапуска')
-
-    def test_missing_records_return_404(self):
-        self.assertEqual(self.request('assignments/999999', 'DELETE')[0], 404)
-        self.assertEqual(self.request('subjects/999999', 'DELETE')[0], 404)
-        self.assertEqual(self.request('assignments/999999', 'PUT', {})[0], 404)
-
-    def test_static_page_and_security_headers(self):
-        with self.client.open(self.base) as response:
-            self.assertEqual(response.status, 200)
-            self.assertIn('Зачёт', response.read().decode('utf-8'))
-            self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
-            self.assertIn("frame-ancestors 'none'", response.headers['Content-Security-Policy'])
-        with self.client.open(self.base + '/app.js') as response:
-            self.assertEqual(response.status, 200)
-        with self.client.open(self.base + '/api/subjects') as response:
-            self.assertEqual(response.headers['Cache-Control'], 'no-store')
 
     def run_migrations(self, directory):
         return subprocess.run([DOTNET, str(ROOT / 'bin/Debug/net10.0/StudyTracker.dll'), '--migrate'],

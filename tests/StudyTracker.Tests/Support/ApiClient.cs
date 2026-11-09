@@ -7,6 +7,9 @@ namespace StudyTracker.Tests.Support;
 /// <summary>Ответ API: тело пустое, если сервер ничего не вернул (тогда <c>Body.ValueKind == Undefined</c>).</summary>
 public sealed record ApiResponse(int Status, JsonElement Body, HttpResponseHeaders Headers);
 
+/// <summary>Ответ обычной страницы или файла (не API).</summary>
+public sealed record PageResponse(int Status, string Text, HttpResponseHeaders Headers);
+
 /// <summary>Браузерный сеанс: свои cookie и свой CSRF-токен, как <c>Client</c> в <c>tests/support.py</c>.</summary>
 public sealed class ApiClient(HttpClient http)
 {
@@ -25,6 +28,21 @@ public sealed class ApiClient(HttpClient http)
         var text = await response.Content.ReadAsStringAsync();
         var json = text.Length == 0 ? default : JsonDocument.Parse(text).RootElement.Clone();
         return new ApiResponse((int)response.StatusCode, json, response.Headers);
+    }
+
+    public async Task<PageResponse> Page(string path)
+    {
+        using var response = await http.GetAsync(path);
+        return new PageResponse((int)response.StatusCode, await response.Content.ReadAsStringAsync(), response.Headers);
+    }
+
+    /// <summary>Регистрирует аккаунт и входит в него; любой другой ответ — ошибка теста.</summary>
+    public async Task SignIn(string email = "api@example.test", string password = DefaultPassword)
+    {
+        var registered = await Register(email, password);
+        Assert.True(registered.Status == 201, "Регистрация: " + registered.Status);
+        var login = await Login(email, password);
+        Assert.True(login.Status == 200, "Вход: " + login.Status);
     }
 
     public Task<ApiResponse> Get(string path) => Send(HttpMethod.Get, path);
