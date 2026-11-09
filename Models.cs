@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using StudyTracker.Calendar;
 using StudyTracker.Notifications;
 
 namespace StudyTracker;
@@ -60,6 +61,7 @@ public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<
     public DbSet<TelegramUpdateState> TelegramUpdateStates => Set<TelegramUpdateState>();
     public DbSet<ReminderDelivery> ReminderDeliveries => Set<ReminderDelivery>();
     public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
+    public DbSet<CalendarLink> CalendarLinks => Set<CalendarLink>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -69,6 +71,10 @@ public class TrackerDb(DbContextOptions<TrackerDb> options) : IdentityDbContext<
         model.Entity<ApiToken>().HasIndex(t => t.Hash).IsUnique();
         model.Entity<ApiToken>().HasIndex(t => t.OwnerId);
         model.Entity<ApiToken>().HasOne<ApplicationUser>().WithMany().HasForeignKey(t => t.OwnerId).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<CalendarLink>().Property(l => l.KeyHash).HasMaxLength(64);
+        model.Entity<CalendarLink>().HasIndex(l => l.OwnerId).IsUnique();
+        model.Entity<CalendarLink>().HasIndex(l => l.KeyHash).IsUnique();
+        model.Entity<CalendarLink>().HasOne<ApplicationUser>().WithMany().HasForeignKey(l => l.OwnerId).OnDelete(DeleteBehavior.Cascade);
         model.Entity<Subject>().HasIndex(s => new { s.OwnerId, s.NameKey }).IsUnique();
         model.Entity<Subject>().HasOne<ApplicationUser>().WithMany().HasForeignKey(s => s.OwnerId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Assignment>().Property(a => a.ImportKey).HasMaxLength(300);

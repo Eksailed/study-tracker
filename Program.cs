@@ -8,6 +8,7 @@ using System.Net;
 using StudyTracker.Notifications;
 using StudyTracker.ApiTokens;
 using StudyTracker.Import;
+using StudyTracker.Calendar;
 
 var migrate = args.Contains("--migrate");
 var builder = WebApplication.CreateBuilder(args.Where(a => !CommandLine.Flags.Contains(a)).ToArray());
@@ -46,6 +47,7 @@ builder.Services.AddTrackerAccounts(builder.Environment);
 builder.AddNotifications();
 builder.Services.AddApiDocs();
 builder.Services.AddImport();
+builder.Services.AddCalendar();
 
 var app = builder.Build();
 app.UseRequestLogging();
@@ -81,6 +83,7 @@ app.MapTrackerAccounts();
 app.MapNotifications();
 app.MapHealth();
 app.MapApiDocs();
+app.MapCalendarFeed();
 
 app.MapGet("/api/token", (HttpContext context, IAntiforgery antiforgery) =>
     Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
@@ -90,6 +93,7 @@ data.MapSubjects();
 data.MapAssignments();
 data.MapTokens();
 data.MapImport();
+data.MapCalendar();
 
 var v1 = app.MapGroup(ApiTokenAuth.V1).RequireAuthorization(ApiTokenAuth.ScopePolicy).RequireRateLimiting(ApiTokenAuth.LimiterPolicy);
 v1.MapSubjects(ApiTokenAuth.V1);

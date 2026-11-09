@@ -103,6 +103,7 @@ public class DatabaseSetupTests : IDisposable
             DROP INDEX IX_Assignments_OwnerId_ImportKey;
             ALTER TABLE Assignments DROP COLUMN ImportKey;
             CREATE INDEX IX_Assignments_OwnerId ON Assignments (OwnerId);
+            DROP TABLE CalendarLinks;
             DROP TABLE ApiTokens;
             DROP TABLE ReminderDeliveries;
             DROP TABLE TelegramLinkCodes;

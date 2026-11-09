@@ -302,6 +302,35 @@ namespace StudyTracker.Migrations
                     b.ToTable("Assignments");
                 });
 
+            modelBuilder.Entity("StudyTracker.Calendar.CalendarLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("OwnerId")
+                        .IsUnique();
+
+                    b.ToTable("CalendarLinks");
+                });
+
             modelBuilder.Entity("StudyTracker.Notifications.NotificationSettings", b =>
                 {
                     b.Property<string>("OwnerId")
@@ -569,6 +598,15 @@ namespace StudyTracker.Migrations
                         .IsRequired();
 
                     b.Navigation("Subject");
+                });
+
+            modelBuilder.Entity("StudyTracker.Calendar.CalendarLink", b =>
+                {
+                    b.HasOne("StudyTracker.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("StudyTracker.Notifications.NotificationSettings", b =>
